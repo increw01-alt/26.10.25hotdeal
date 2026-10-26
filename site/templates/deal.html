@@ -1,0 +1,70 @@
+{{> head}}
+{{> header}}
+{{affiliateTop}}
+{{> breadcrumb}}
+<main id="main" class="container flex-1 py-8 md:py-12">
+  <div class="grid gap-8 lg:grid-cols-[1fr_340px]">
+    <article>
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <a href="/brands/{{brand}}/" class="font-semibold text-brand-700 hover:underline">{{brandName}}</a>
+        <span class="text-ink-300">·</span><span class="text-ink-500">{{merchantName}}</span>
+        <span class="{{statusChipClass}}">{{statusLabel}}</span>
+        {{affiliateChip}}
+      </div>
+      <h1 class="mt-2 text-2xl font-extrabold leading-snug md:text-3xl">{{titleClean}}</h1>
+      <p class="mt-2 text-sm text-ink-500">최초 발견 <time datetime="{{firstSeen}}">{{firstSeenLabel}}</time> · 마지막 확인 <time datetime="{{lastSeen}}">{{lastSeenLabel}}</time> · {{isoWeek}}</p>
+
+      <dl class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="stat"><dt>판매가</dt><dd class="text-xl">{{salePriceLabel}}</dd></div>
+        <div class="stat"><dt>액면가</dt><dd class="text-xl">{{faceValueLabel}}</dd></div>
+        <div class="stat"><dt>할인율</dt><dd class="text-xl text-brand-700">{{discountLabel}}</dd></div>
+        <div class="stat"><dt>{{fourthLabel}}</dt><dd class="text-xl">{{fourthValue}}</dd></div>
+      </dl>
+
+      <section class="mt-8" aria-labelledby="h-cond">
+        <h2 id="h-cond" class="text-lg font-bold">구매 조건</h2>
+        <dl class="mt-3 grid gap-3 sm:grid-cols-2">
+          {{conditionRows}}
+        </dl>
+        <p class="mt-3 text-xs text-ink-500">조건은 커뮤니티 글 제목에서 자동 추출한 값입니다. 실제 적용 여부는 판매처 상품 페이지와 카드사 공지에서 확인하세요.</p>
+      </section>
+
+      <section class="mt-8" aria-labelledby="h-prices">
+        <h2 id="h-prices" class="text-lg font-bold">일별 가격 추이</h2>
+        <div class="mt-3 overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-left text-xs text-ink-500"><tr><th class="py-2 pr-3 font-medium">날짜</th><th class="py-2 pr-3 font-medium">판매가</th><th class="py-2 pr-3 font-medium">시세</th><th class="py-2 pr-3 font-medium">추천</th><th class="py-2 font-medium">댓글</th></tr></thead>
+            <tbody class="divide-y divide-ink-100">{{priceRows}}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="mt-8" aria-labelledby="h-history">
+        <h2 id="h-history" class="text-lg font-bold">같은 조건의 과거 딜 <span class="text-sm font-medium text-ink-500">({{repeatWeeks}}주 등장)</span></h2>
+        <ul class="mt-3 divide-y divide-ink-100 text-sm">{{historyRows}}</ul>
+      </section>
+
+      <section class="mt-8" aria-labelledby="h-sources">
+        <h2 id="h-sources" class="text-lg font-bold">출처 커뮤니티 글</h2>
+        <ul class="mt-3 space-y-2 text-sm">{{sourceRows}}</ul>
+        <p class="mt-2 text-xs text-ink-500">제목과 링크만 표시하며 본문은 저장하지 않습니다. 작성자 요청 시 24시간 내 제외합니다. <a href="/about/#sources" class="underline">출처 정책</a></p>
+      </section>
+    </article>
+
+    <aside class="lg:sticky lg:top-20 h-fit space-y-4">
+      <div class="card p-5">
+        <p class="text-xs font-medium text-ink-500">{{ctaCaption}}</p>
+        <p class="mt-1 text-2xl font-extrabold tabular-nums">{{salePriceLabel}} <span class="text-sm font-semibold text-brand-700">{{discountLabel}}</span></p>
+        {{ctaButton}}
+        <p class="mt-3 text-xs text-ink-500">{{ctaNote}}</p>
+      </div>
+      <div class="card p-5">
+        <h2 class="text-sm font-bold">{{brandName}} 다른 딜</h2>
+        <ul class="mt-2 space-y-2 text-sm">{{relatedRows}}</ul>
+        <a href="/brands/{{brand}}/" class="mt-3 inline-block text-sm font-semibold text-brand-700 hover:underline">{{brandName}} 전체 보기 →</a>
+      </div>
+      {{rateAside}}
+    </aside>
+  </div>
+</main>
+{{> footer}}

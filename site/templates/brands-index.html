@@ -1,0 +1,11 @@
+{{> head}}
+{{> header}}
+{{> breadcrumb}}
+<main id="main" class="container flex-1 py-8 md:py-12">
+  <h1 class="text-3xl font-extrabold">브랜드별 상품권 핫딜</h1>
+  <p class="mt-2 max-w-2xl text-ink-700">브랜드를 고르면 지금 진행 중인 딜, 자주 등장하는 판매처와 카드 조건, 최근 8주 흐름을 한 페이지에서 볼 수 있습니다.</p>
+  <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {{brandCards}}
+  </div>
+</main>
+{{> footer}}

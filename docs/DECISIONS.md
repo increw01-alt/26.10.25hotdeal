@@ -11,7 +11,7 @@
 | D-04 | A-4 네트워크 위젯 | **독립 사이트**로 제작. 모두의시세 페이지에 위젯을 심는 설계(§10-3)는 폐기. 대신 새 사이트가 **정보 제공자**가 되어 모두의시세·한국상품권협회 등 외부 사이트가 가져다 쓸 수 있는 공개 피드와 임베드 위젯을 제공한다. 외부 데이터(시세)를 가져올 때는 출처 1줄 표기. | `worker/src/api.ts`, `docs/PLAN-v1.1.md` §10 |
 | D-05 | A-5 제휴 고지 | **쿠팡 파트너스는 사이트 완성 후 검토**. 지금은 가능성만 열어둔다. `affiliate` 필드와 라벨·상단 고지 컴포넌트는 만들되 기본값 off. | `site/templates/partials/affiliate-notice.html`, `shared/site.config.json` |
 | D-06 | B-1 데이터 커밋 | git에 데이터를 커밋하지 않는다. 딜 데이터는 **Cloudflare D1**에 저장. | 스택 전환(D-09) |
-| D-07 | B-2 Pages 한도 | 종료 30일 지난 딜은 개별 페이지 생성 중단. 과거 딜은 **주차별 아카이브 페이지**로 묶음. 배포 명령에 `--branch=main` 명시. | `site/scripts/build.mjs` |
+| D-07 | B-2 Pages 한도 | 종료 30일 지난 딜은 개별 페이지 생성 중단(Pages `_redirects`가 410을 지원하지 않아 404 페이지에서 아카이브로 안내). 과거 딜은 **주차별 아카이브 페이지**로 묶음. 종료 딜 상세는 noindex. 배포 명령에 `--branch=main` 명시. | `site/scripts/build.mjs` |
 | D-08 | B-3 Tailwind | Phase 1부터 **Tailwind CLI 빌드**. CDN 사용 안 함. | `site/package.json` |
 | D-09 | 스택 | **Cloudflare Workers(Cron 1분) + D1 + Pages**. GitHub Actions는 코드 변경 시 빌드·배포만 담당. 수집은 Workers Cron이 담당. 예상 비용 월 $5(Workers Paid) + 도메인. | `worker/wrangler.toml` |
 | D-10 | B-4 점수 정규화 | 소스별 최근 7일 추천 수 중앙값으로 나눈 상대값을 `log1p()`에 넣는다. 운영 2주 후 실제 데이터로 보정. | `worker/src/score.ts` |

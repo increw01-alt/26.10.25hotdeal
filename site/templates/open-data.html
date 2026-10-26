@@ -1,0 +1,49 @@
+{{> head}}
+{{> header}}
+{{> breadcrumb}}
+<main id="main" class="container flex-1 py-8 md:py-12">
+  <div class="max-w-3xl">
+    <h1 class="text-3xl font-extrabold">데이터 제공 · 임베드</h1>
+    <p class="mt-2 text-ink-700">{{siteName}}이(가) 수집한 상품권 핫딜 데이터를 JSON 피드와 임베드 위젯으로 제공합니다. 시세 사이트, 커뮤니티, 블로그 어디서든 가져다 쓸 수 있습니다.</p>
+
+    <h2 class="mt-10 text-xl font-extrabold">이용 조건</h2>
+    <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm text-ink-700">
+      <li><strong>출처 표기</strong>: 데이터를 표시하는 화면에 "출처: {{siteName}}"과 이 사이트로의 링크를 함께 표시합니다. 응답의 <code class="rounded bg-surface-muted px-1">source</code> 필드를 그대로 쓰면 됩니다.</li>
+      <li><strong>재판매 금지</strong>: 데이터 자체를 유료로 판매하거나 유료 API로 재제공할 수 없습니다. 자신의 서비스 안에서 표시하는 것은 자유입니다.</li>
+      <li><strong>호출 간격</strong>: 피드는 15분 캐시됩니다. 같은 엔드포인트를 15분에 1회 이상 호출할 필요가 없습니다.</li>
+      <li><strong>원문 존중</strong>: 딜의 원문 커뮤니티 글 링크(<code class="rounded bg-surface-muted px-1">deal_url</code>)를 제거하지 않습니다.</li>
+      <li>제외 요청으로 삭제된 딜은 피드에서도 사라집니다. 캐시한 데이터도 24시간 내 갱신해 주세요.</li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-extrabold">JSON 피드</h2>
+    <div class="mt-3 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs text-ink-500"><tr><th class="py-2 pr-3 font-medium">경로</th><th class="py-2 font-medium">설명</th></tr></thead>
+        <tbody class="divide-y divide-ink-100 font-mono text-[13px]">
+          <tr><td class="py-2 pr-3"><a class="text-brand-700" href="{{apiBase}}/api/deals.json">/api/deals.json</a></td><td class="font-sans">진행 중 딜. <span class="text-ink-500">?limit=50&amp;status=active|live|ending|ended&amp;brand=슬러그&amp;category=gift&amp;sort=score|recent|discount</span></td></tr>
+          <tr><td class="py-2 pr-3"><a class="text-brand-700" href="{{apiBase}}/api/brands.json">/api/brands.json</a></td><td class="font-sans">브랜드 슬러그 목록</td></tr>
+          <tr><td class="py-2 pr-3">/api/brands/{slug}.json</td><td class="font-sans">브랜드별 딜</td></tr>
+          <tr><td class="py-2 pr-3">/api/weekly/{YYYY-Www}.json</td><td class="font-sans">주차별 딜(브랜드 묶음)</td></tr>
+          <tr><td class="py-2 pr-3">/api/deals/{id}.json</td><td class="font-sans">딜 상세(출처 글, 일별 가격, 과거 반복)</td></tr>
+          <tr><td class="py-2 pr-3"><a class="text-brand-700" href="{{apiBase}}/api/status.json">/api/status.json</a></td><td class="font-sans">마지막 갱신 시각, 갱신 지연 여부</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-2 text-xs text-ink-500">기본 주소: <code class="rounded bg-surface-muted px-1">{{apiBase}}</code>. CORS 허용. 정적 사본 <code class="rounded bg-surface-muted px-1">{{siteUrl}}/api/deals.json</code>은 1시간마다 갱신되며 API 장애 시 대체용입니다.</p>
+
+    <h3 class="mt-6 text-base font-bold">응답 예시 (deals 항목 1건)</h3>
+<pre class="mt-2 overflow-x-auto rounded-md bg-surface-dark p-4 text-xs text-white/90"><code>{{sampleJson}}</code></pre>
+
+    <h2 class="mt-10 text-xl font-extrabold">임베드 위젯</h2>
+    <p class="mt-2 text-sm text-ink-700">아래 한 줄을 붙여 넣으면 해당 브랜드의 진행 중 딜 상위 5개가 표시됩니다. 출처 링크가 위젯 안에 포함됩니다. <code class="rounded bg-surface-muted px-1">data-brand</code>를 빼면 전체 TOP 5가 나옵니다.</p>
+<pre class="mt-3 overflow-x-auto rounded-md bg-surface-dark p-4 text-xs text-white/90"><code>&lt;div data-hotdeal-widget data-brand="cultureland" data-limit="5"&gt;&lt;/div&gt;
+&lt;script async src="{{siteUrl}}/embed.js"&gt;&lt;/script&gt;</code></pre>
+    <p class="mt-3 text-sm text-ink-700">iframe 방식:</p>
+<pre class="mt-2 overflow-x-auto rounded-md bg-surface-dark p-4 text-xs text-white/90"><code>&lt;iframe src="{{siteUrl}}/embed/cultureland/" width="100%" height="420" loading="lazy" title="{{siteName}} 컬쳐랜드 핫딜" style="border:0"&gt;&lt;/iframe&gt;</code></pre>
+    <h3 class="mt-6 text-base font-bold">미리보기</h3>
+    <div class="mt-2 card p-4"><div data-hotdeal-widget data-limit="5" data-static="/api/deals.json"></div></div>
+    <p class="mt-6 text-sm text-ink-700">사용 가능한 브랜드 슬러그: {{brandSlugs}}</p>
+  </div>
+</main>
+<script async src="/embed.js"></script>
+{{> footer}}

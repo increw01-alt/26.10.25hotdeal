@@ -1,0 +1,26 @@
+{
+  "$comment": "샘플 상세 데이터 (딜 id → posts/prices/history). API 모드에서는 /api/deals/{id}.json 을 사용한다.",
+  "8815d95475eac671": {
+    "posts": [
+      { "source": "ppomppu", "post_url": "https://www.ppomppu.co.kr/zboard/view.php?id=ppomppu&no=900001", "title": "[지마켓] 컬쳐랜드 문화상품권 5만원권 (46,000원/무료) 신한카드 1인 3매", "posted_at": "2026-10-26T08:05:00.000Z", "votes": 42, "comments": 17 },
+      { "source": "clien", "post_url": "https://www.clien.net/service/board/jirum/19100001", "title": "컬쳐랜드 5만원 46,000원 (지마켓/무료) 신한카드 즉시할인", "posted_at": "2026-10-26T08:20:00.000Z", "votes": 9, "comments": 4 }
+    ],
+    "prices": [
+      { "date": "2026-10-26", "sale_price": 46000, "buy_rate": null, "votes": 42, "comments": 17 }
+    ],
+    "history": [
+      { "id": "7f1e2d3c4b5a6978", "iso_week": "2026-W43", "sale_price": 46000, "status": "ended", "first_seen": "2026-10-19T09:00:00.000Z" },
+      { "id": "6e0d1c2b3a495867", "iso_week": "2026-W42", "sale_price": 46500, "status": "ended", "first_seen": "2026-10-12T09:30:00.000Z" }
+    ]
+  },
+  "2905fee1e1fd76dc": {
+    "posts": [ { "source": "ruliweb", "post_url": "https://bbs.ruliweb.com/market/board/1020/read/77000001", "title": "[옥션] 해피머니 상품권 10만원 8% 할인 (현대카드 즉시할인) 1인 2매", "posted_at": "2026-10-26T07:35:00.000Z", "votes": 21, "comments": 6 } ],
+    "prices": [ { "date": "2026-10-26", "sale_price": 92000, "buy_rate": null, "votes": 21, "comments": 6 } ],
+    "history": []
+  },
+  "c063273cde62995d": {
+    "posts": [ { "source": "quasarzone", "post_url": "https://quasarzone.com/bbs/qb_saleinfo/views/1700001", "title": "[11번가] 신세계상품권 10만원 95,500원 KB국민카드 청구할인", "posted_at": "2026-10-25T11:50:00.000Z", "votes": 15, "comments": 3 } ],
+    "prices": [ { "date": "2026-10-25", "sale_price": 95500, "buy_rate": null, "votes": 12, "comments": 2 }, { "date": "2026-10-26", "sale_price": 95500, "buy_rate": null, "votes": 15, "comments": 3 } ],
+    "history": [ { "id": "5d9c0b1a29384756", "iso_week": "2026-W43", "sale_price": 96000, "status": "ended", "first_seen": "2026-10-18T10:00:00.000Z" } ]
+  }
+}

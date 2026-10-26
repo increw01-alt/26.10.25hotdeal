@@ -95,10 +95,23 @@ npx serve dist                                          # http://localhost:3000
 
 CORS 허용, 15분 캐시, 응답에 `source`(출처 표기용) 포함. 이용 조건 페이지는 Phase 2에서 `/open-data/`에 추가.
 
-## 아직 안 된 것 (Phase 2~3)
+## 사이트 페이지 (Phase 2 완료)
 
-- 브랜드 허브·딜 상세·주간 비교·소개/출처 정책/데이터 제공 페이지 템플릿
-- 임베드 위젯(`/embed/{slug}`)
+| 경로 | 템플릿 | 비고 |
+|---|---|---|
+| `/` | `index.html` | 히어로, 필터, 점수순 딜 카드 |
+| `/brands/`, `/brands/{slug}/` | `brands-index.html`, `brand.html` | 브랜드 허브(1급 색인). 진행 중·자주 보이는 조건·8주 흐름·지난 딜·FAQ(FAQPage JSON-LD) |
+| `/deal/{id}/` | `deal.html` | 조건·일별 가격·과거 반복·출처 글. 종료 딜은 noindex + 구매 버튼 비활성화(D-11). 종료 30일 후 미생성(D-07) |
+| `/weekly/`, `/weekly/{YYYY-Www}/` | `weekly-index.html`, `weekly.html` | 최근 8주 비교·아카이브(D-02) |
+| `/about/` | `about.html` | 소개·출처 정책·제외 요청·정확성·제휴 안내 |
+| `/open-data/` | `open-data.html` | 피드 문서·이용 조건·임베드 코드·미리보기(D-04) |
+| `/embed/`, `/embed/{slug}/`, `/embed.js` | `embed.html`, `src/js/embed.js` | iframe/script 임베드 위젯. noindex |
+| `404.html` | `404.html` | 만료 딜 안내 |
+
+빌드 산출물에는 `sitemap.xml`, `robots.txt`, `_headers`(CORS·캐시), `/api/deals.json` 정적 사본이 포함된다.
+
+## 아직 안 된 것 (Phase 3)
+
 - hotdeal.zip 구조 분석 반영, 소스별 RSS 실존 확인(이 환경은 네트워크 차단)
 - 에펨코리아 파서, 파싱 실패 큐의 LLM 보조 파싱
 - 사이트명·도메인·운영자 정보 확정 (`REPLACE_*`)

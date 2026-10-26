@@ -1,5 +1,5 @@
 import type { Env } from "./types";
-import { num, BRANDS } from "./config";
+import { num, BRANDS, MERCHANTS } from "./config";
 import { isoWeekKST } from "./dedupe";
 import { buildIngestCtx, finalizeRun, ingestPosts } from "./collect";
 import type { RawPost } from "./types";
@@ -60,6 +60,7 @@ function rowToDeal(r: Record<string, unknown>) {
   return {
     ...r,
     brand_name: b?.name ?? r.brand,
+    merchant_name: MERCHANTS.find((m) => m.slug === r.merchant)?.name ?? r.merchant ?? null,
     card_issuers: safeJson(r.card_issuers as string, []),
     is_affiliate: !!r.is_affiliate,
     // 제휴 미사용(D-05) 시 affiliate_url은 노출하지 않음

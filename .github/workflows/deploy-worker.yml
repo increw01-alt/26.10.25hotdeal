@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: worker/package-lock.json }
       - run: npm ci
+      - name: 설정 검사 (REPLACE_ 플레이스홀더 차단)
+        run: node ../scripts/check-config.mjs --worker
       - run: npm test
       - run: npm run typecheck
       - name: D1 스키마 적용(멱등)

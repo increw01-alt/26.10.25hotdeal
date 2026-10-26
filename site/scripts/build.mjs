@@ -371,15 +371,18 @@ for (const [i, w] of weeks.entries()) {
     description: "상품권 핫딜 데이터를 JSON 피드와 임베드 위젯으로 제공합니다. 출처 표기 조건과 엔드포인트, 임베드 코드 안내.",
     canonical: `${site.siteUrl}/open-data/`, jsonld: ld([...orgLd, breadcrumbLd(crumbItems)]), crumbs: crumbs(crumbItems),
     sampleJson: sample ? JSON.stringify(sample, null, 2) : "{}",
+    brandOptions: raw(BRANDS.map((b) => `<option value="${esc(b.slug)}">${esc(b.name)}</option>`).join("")),
     brandSlugs: raw(BRANDS.map((b) => `<code class="rounded bg-surface-muted px-1">${esc(b.slug)}</code>`).join(" ")),
   }));
 }
-await emit("/embed/", await render("embed", { title: `${site.siteName} 핫딜 TOP 5`, brandSlug: "" }), { indexable: false });
+await emit("/embed/", (await render("embed", { title: `${site.siteName} 핫딜 TOP 5`, brandSlug: "" })).replace(' data-brand=""', ""), { indexable: false });
 for (const b of BRANDS) await emit(`/embed/${b.slug}/`, await render("embed", { title: `${site.siteName} ${b.name} 핫딜`, brandSlug: b.slug }), { indexable: false });
 await emit("/404.html", await render("404", { ...common, title: `페이지를 찾을 수 없습니다 | ${site.siteName}`, description: "요청한 페이지가 없습니다.", canonical: `${site.siteUrl}/404.html`, robots: "noindex", jsonld: ld(orgLd) }), { indexable: false });
 
 // ---------- 6. 자산·메타 파일 ----------
 await cp(path.join(root, "src/js/site.js"), path.join(dist, "assets/site.js"));
+await cp(path.join(root, "src/js/embed-frame.js"), path.join(dist, "assets/embed-frame.js"));
+await cp(path.join(root, "src/js/embed-config.js"), path.join(dist, "assets/embed-config.js"));
 await writeFile(path.join(dist, "embed.js"), (await readFile(path.join(root, "src/js/embed.js"), "utf8")).replaceAll("__API_BASE__", apiBase).replaceAll("__SITE_NAME__", site.siteName));
 await writeFile(path.join(dist, "assets/favicon.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#1d58f0"/><path d="M8 15h16v10H8z M6 10h20v5H6z M16 10v15" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/></svg>`);
 await writeFile(path.join(dist, "api/deals.json"), JSON.stringify({ ...data.meta, deals: activeDeals }));

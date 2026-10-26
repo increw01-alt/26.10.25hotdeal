@@ -34,8 +34,8 @@
 │  ├─ templates/              index.html + partials(헤더·푸터·딜 카드·배너·제휴고지)
 │  ├─ src/styles/input.css    Tailwind 진입 CSS
 │  ├─ src/js/site.js          메뉴·필터·갱신지연 배너
-│  └─ data/sample.deals.json  샘플 데이터(개발용)
-└─ .github/workflows/         ci.yml, deploy-worker.yml, deploy-site.yml
+│  └─ data/sample.*.json      샘플 데이터(개발용)
+├─ .github/workflows/         ci.yml, deploy-worker.yml, deploy-site.yml
 ```
 
 ## 스택과 비용 (D-09)
@@ -74,13 +74,15 @@ node scripts/build.mjs --sample && npm run build:css   # dist/ 생성 (샘플 �
 npx serve dist                                          # http://localhost:3000
 ```
 
-## 배포 절차 (계정 작업은 직접 수행)
+## 배포 절차
 
-1. **Cloudflare**: Workers Paid 결제 → `cd worker && npm run db:create` → 출력된 `database_id`를 `wrangler.toml`에 기입 → `npm run db:migrate:remote` → `npx wrangler secret put TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` → `npm run deploy`.
-2. **Pages**: Cloudflare 대시보드에서 Pages 프로젝트 생성(Direct Upload).
-3. **GitHub**: Settings → Secrets에 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, (선택) `TELEGRAM_*`; Variables에 `CF_PAGES_PROJECT`, `API_BASE`(Worker URL).
-4. `shared/site.config.json`과 `worker/wrangler.toml`의 `REPLACE_*` 값을 실제 값으로 교체.
-5. `main`에 push → `deploy-worker.yml`, `deploy-site.yml` 자동 실행. 최초 1회는 Actions에서 `Deploy Site`를 `allow_empty=true`로 수동 실행해 샘플 데이터로 올릴 수 있음.
+자세한 단계는 [`docs/DEPLOY.md`](docs/DEPLOY.md). 요약:
+
+1. **Cloudflare 초기화(한 번)**: `powershell -ExecutionPolicy Bypass -File scripts\setup-cloudflare.ps1` (WSL/macOS는 `bash scripts/setup-cloudflare.sh`). D1 생성·스키마·Worker 배포·Pages 프로젝트·첫 배포까지 자동.
+2. **설정값**: `shared/site.config.json`, `worker/wrangler.toml`의 `REPLACE_*`를 실제 값으로 교체. `node scripts/check-config.mjs`로 확인(배포 워크플로가 같은 검사를 먼저 돌린다).
+3. **GitHub**: Secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; Variables `CF_PAGES_PROJECT`, `API_BASE`.
+4. `main`에 push → `deploy-worker.yml`, `deploy-site.yml` 자동 실행. 사이트는 매시 7분에도 재빌드.
+5. (선택) 커스텀 도메인: Pages Custom domains + `wrangler.toml`의 `routes` 주석 해제.
 
 ## 공개 피드 API (D-04)
 
@@ -110,7 +112,13 @@ CORS 허용, 15분 캐시, 응답에 `source`(출처 표기용) 포함. 이용 �
 
 빌드 산출물에는 `sitemap.xml`, `robots.txt`, `_headers`(CORS·캐시), `/api/deals.json` 정적 사본이 포함된다.
 
-## 아직 안 된 것 (Phase 3)
+## 임베드 위젯 (Phase 3 완료)
+
+- 스크립트: `<div data-hotdeal-widget data-brand="cultureland" data-limit="5" data-theme="light|dark|auto" data-compact></div><script async src="https://<SITE>/embed.js"></script>`
+- iframe: `https://<SITE>/embed/{slug}/?limit=5&theme=dark&compact=1`. 부모 창에 `hotdeal-widget:height` 메시지로 높이를 알린다.
+- `/open-data/`에 옵션 선택형 코드 생성기와 라이브 미리보기.
+
+## 아직 안 된 것
 
 - hotdeal.zip 구조 분석 반영, 소스별 RSS 실존 확인(이 환경은 네트워크 차단)
 - 에펨코리아 파서, 파싱 실패 큐의 LLM 보조 파싱

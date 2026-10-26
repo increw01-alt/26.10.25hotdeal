@@ -1,0 +1,37 @@
+# Cloudflare Workers 설정 (D-09, D-13)
+# 1) npm run db:create 실행 후 출력된 database_id를 아래에 넣는다.
+# 2) secrets: wrangler secret put TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID
+name = "hotdeal-hub-worker"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+# 1분 간격 수집 (Workers Paid 권장: CPU 30초, 한도 초과 시 과금)
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hotdeal-hub"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[vars]
+SITE_NAME = "REPLACE_SITE_NAME"
+SITE_URL = "https://REPLACE_WITH_SITE_URL"
+# 공개 URL은 vars (D-13). 시세 연동을 켜려면 RATES_ENABLED="true"
+RATES_ENABLED = "false"
+RATES_JSON_URL = "https://REPLACE_WITH_RATES_JSON_URL"
+RATES_SOURCE_NAME = "모두의시세"
+# 운영 가드 (D-03)
+GUARD_MIN_ACTIVE_RATIO = "0.5"
+GUARD_STALE_HOURS = "2"
+CB_FAIL_THRESHOLD = "5"
+CB_COOLDOWN_MIN = "60"
+FEED_CACHE_SECONDS = "900"
+FETCH_TIMEOUT_MS = "10000"
+USER_AGENT = "HotdealHubBot/0.1 (+https://REPLACE_WITH_SITE_URL/about/bot)"
+# 에펨코리아 활성화 여부 (D-15)
+ENABLE_FMKOREA = "false"
+
+[observability]
+enabled = true

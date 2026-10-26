@@ -1,0 +1,23 @@
+{
+  "name": "hotdeal-hub-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "커뮤니티 핫딜 수집 Cron + 공개 피드 API (Cloudflare Workers + D1)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create hotdeal-hub",
+    "db:migrate:local": "wrangler d1 execute hotdeal-hub --local --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute hotdeal-hub --remote --file=./schema.sql",
+    "cron:local": "curl -s \"http://localhost:8787/__scheduled?cron=*+*+*+*+*\"",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261019.1",
+    "typescript": "~5.9.3",
+    "vitest": "~3.2.7",
+    "wrangler": "~4.152.0"
+  }
+}

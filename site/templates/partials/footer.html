@@ -1,0 +1,34 @@
+<footer class="mt-auto border-t border-ink-100 bg-white">
+  <div class="container grid gap-8 py-10 md:grid-cols-3 text-sm">
+    <div>
+      <p class="font-extrabold text-ink-900">{{siteName}}</p>
+      <p class="mt-2 text-ink-500 leading-relaxed">{{tagline}}. 커뮤니티에 공개된 핫딜 글의 제목과 링크만 수집하며, 본문은 저장하지 않습니다. 가격과 조건은 판매처에서 반드시 다시 확인해 주세요.</p>
+    </div>
+    <div>
+      <p class="font-semibold text-ink-900">바로가기</p>
+      <ul class="mt-2 space-y-1.5 text-ink-700">
+        <li><a href="/brands/" class="hover:text-brand-700">브랜드별 딜</a></li>
+        <li><a href="/weekly/" class="hover:text-brand-700">주간 비교</a></li>
+        <li><a href="/open-data/" class="hover:text-brand-700">데이터 제공·임베드</a></li>
+        <li><a href="/about/#sources" class="hover:text-brand-700">출처 정책·제외 요청</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="font-semibold text-ink-900">운영</p>
+      <ul class="mt-2 space-y-1.5 text-ink-700">
+        <li>운영: {{operatorName}}</li>
+        <li>문의: <a href="mailto:{{operatorEmail}}" class="hover:text-brand-700">{{operatorEmail}}</a></li>
+        <li>마지막 갱신: <time datetime="{{lastUpdated}}">{{lastUpdatedLabel}}</time></li>
+      </ul>
+    </div>
+  </div>
+  <div class="border-t border-ink-100">
+    <div class="container flex flex-col gap-1 py-4 text-xs text-ink-500 md:flex-row md:items-center md:justify-between">
+      <p>© {{year}} {{siteName}}. 이 사이트는 상품권을 판매하거나 거래를 중개하지 않습니다.</p>
+      {{affiliateFooter}}
+    </div>
+  </div>
+</footer>
+<script src="/assets/site.js" defer></script>
+</body>
+</html>

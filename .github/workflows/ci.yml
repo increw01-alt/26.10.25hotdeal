@@ -1,0 +1,31 @@
+name: CI
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+jobs:
+  worker:
+    name: Worker 테스트·타입검사
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults: { run: { working-directory: worker } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: worker/package-lock.json }
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+  site:
+    name: 사이트 빌드(샘플 데이터)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults: { run: { working-directory: site } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: site/package-lock.json }
+      - run: npm ci
+      - run: node scripts/build.mjs --sample
+      - run: npm run build:css
+      - run: test -s dist/index.html && test -s dist/assets/site.css

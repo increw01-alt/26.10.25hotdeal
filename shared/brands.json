@@ -1,0 +1,48 @@
+{
+  "$comment": "상품권 브랜드 정의. slug는 URL과 dedupe_key에 사용. aliases는 제목 파싱용(소문자·공백 제거 후 매칭). rates_key는 모두의시세 rates.json의 키(확인 후 교체).",
+  "brands": [
+    { "slug": "cultureland", "name": "컬쳐랜드", "aliases": ["컬쳐랜드", "컬처랜드", "문화상품권", "문상", "컬쳐캐쉬", "컬쳐랜드상품권"], "face_values": [5000, 10000, 30000, 50000, 100000], "rates_key": "cultureland", "category": "gift" },
+    { "slug": "happymoney", "name": "해피머니", "aliases": ["해피머니", "해머", "해피머니상품권"], "face_values": [5000, 10000, 30000, 50000], "rates_key": "happymoney", "category": "gift" },
+    { "slug": "booknlife", "name": "북앤라이프", "aliases": ["북앤라이프", "도서문화상품권", "도서상품권", "도문"], "face_values": [5000, 10000, 30000, 50000], "rates_key": "booknlife", "category": "gift" },
+    { "slug": "shinsegae", "name": "신세계상품권", "aliases": ["신세계상품권", "신세계", "ssg상품권", "신세계모바일상품권"], "face_values": [10000, 50000, 100000, 500000], "rates_key": "shinsegae", "category": "dept" },
+    { "slug": "lotte", "name": "롯데상품권", "aliases": ["롯데상품권", "롯데모바일상품권", "엘포인트상품권"], "face_values": [10000, 50000, 100000, 500000], "rates_key": "lotte", "category": "dept" },
+    { "slug": "hyundai", "name": "현대백화점상품권", "aliases": ["현대백화점상품권", "현대상품권", "현백상품권"], "face_values": [10000, 50000, 100000, 500000], "rates_key": "hyundai", "category": "dept" },
+    { "slug": "galleria", "name": "갤러리아상품권", "aliases": ["갤러리아상품권", "갤러리아"], "face_values": [10000, 50000, 100000], "rates_key": "galleria", "category": "dept" },
+    { "slug": "emart", "name": "이마트상품권", "aliases": ["이마트상품권", "이마트모바일상품권"], "face_values": [10000, 50000, 100000], "rates_key": "emart", "category": "mart" },
+    { "slug": "homeplus", "name": "홈플러스상품권", "aliases": ["홈플러스상품권", "홈플상품권"], "face_values": [10000, 50000, 100000], "rates_key": "homeplus", "category": "mart" },
+    { "slug": "naverpay", "name": "네이버페이포인트", "aliases": ["네이버페이", "네페", "네이버페이포인트", "npay"], "face_values": [10000, 30000, 50000, 100000], "rates_key": null, "category": "pay" },
+    { "slug": "kakaopay", "name": "카카오페이포인트", "aliases": ["카카오페이", "카페포인트", "카카오페이포인트"], "face_values": [10000, 30000, 50000], "rates_key": null, "category": "pay" },
+    { "slug": "google", "name": "구글 기프트코드", "aliases": ["구글기프트", "구글플레이기프트", "구글기프트코드", "구글플레이"], "face_values": [10000, 30000, 50000, 100000], "rates_key": "google", "category": "digital" },
+    { "slug": "nexon", "name": "넥슨캐시", "aliases": ["넥슨캐시", "넥슨카드", "넥슨"], "face_values": [10000, 30000, 50000], "rates_key": "nexon", "category": "digital" },
+    { "slug": "starbucks", "name": "스타벅스 카드", "aliases": ["스타벅스", "스벅", "스타벅스카드", "스타벅스e카드"], "face_values": [10000, 30000, 50000], "rates_key": null, "category": "cafe" },
+    { "slug": "cgv", "name": "CGV 관람권", "aliases": ["cgv", "cgv관람권", "cgv영화관람권"], "face_values": [], "rates_key": null, "category": "ticket" }
+  ],
+  "merchants": [
+    { "slug": "gmarket", "name": "지마켓", "aliases": ["지마켓", "gmarket", "g마켓"] },
+    { "slug": "auction", "name": "옥션", "aliases": ["옥션", "auction"] },
+    { "slug": "11st", "name": "11번가", "aliases": ["11번가", "11st", "십일번가"] },
+    { "slug": "coupang", "name": "쿠팡", "aliases": ["쿠팡", "coupang"] },
+    { "slug": "naver", "name": "네이버", "aliases": ["네이버", "네이버쇼핑", "스마트스토어", "naver"] },
+    { "slug": "ssg", "name": "SSG닷컴", "aliases": ["ssg", "ssg닷컴", "쓱"] },
+    { "slug": "lotteon", "name": "롯데온", "aliases": ["롯데온", "lotteon"] },
+    { "slug": "kakao", "name": "카카오톡 선물하기", "aliases": ["카카오톡선물하기", "카톡선물하기", "선물하기"] },
+    { "slug": "toss", "name": "토스", "aliases": ["토스", "toss"] },
+    { "slug": "payco", "name": "페이코", "aliases": ["페이코", "payco"] },
+    { "slug": "cardmall", "name": "카드사몰", "aliases": ["신한카드몰", "삼성카드몰", "현대카드몰", "kb카드몰", "롯데카드몰", "하나카드몰", "우리카드몰", "nh카드몰", "bc카드몰", "카드몰"] },
+    { "slug": "cultureland_direct", "name": "컬쳐랜드 공식", "aliases": ["컬쳐랜드공식", "컬쳐랜드앱"] },
+    { "slug": "happymoney_direct", "name": "해피머니 공식", "aliases": ["해피머니공식", "해피머니앱"] }
+  ],
+  "card_issuers": [
+    { "slug": "shinhan", "name": "신한카드", "aliases": ["신한카드", "신한"] },
+    { "slug": "samsung", "name": "삼성카드", "aliases": ["삼성카드", "삼성"] },
+    { "slug": "hyundai", "name": "현대카드", "aliases": ["현대카드", "현대"] },
+    { "slug": "kb", "name": "KB국민카드", "aliases": ["kb국민카드", "국민카드", "kb카드", "kb"] },
+    { "slug": "lotte", "name": "롯데카드", "aliases": ["롯데카드"] },
+    { "slug": "hana", "name": "하나카드", "aliases": ["하나카드", "하나"] },
+    { "slug": "woori", "name": "우리카드", "aliases": ["우리카드", "우리"] },
+    { "slug": "nh", "name": "NH농협카드", "aliases": ["nh농협카드", "농협카드", "nh카드", "농협"] },
+    { "slug": "bc", "name": "BC카드", "aliases": ["bc카드", "비씨카드"] },
+    { "slug": "kakaobank", "name": "카카오뱅크", "aliases": ["카카오뱅크", "카뱅"] },
+    { "slug": "tossbank", "name": "토스뱅크", "aliases": ["토스뱅크"] }
+  ]
+}

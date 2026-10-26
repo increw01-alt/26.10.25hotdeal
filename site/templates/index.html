@@ -1,0 +1,50 @@
+{{> head}}
+{{> header}}
+{{affiliateTop}}
+<main id="main" class="flex-1">
+  <!-- 히어로 -->
+  <section class="relative overflow-hidden bg-surface-dark text-white">
+    <div class="pointer-events-none absolute inset-0 opacity-40" aria-hidden="true" style="background: radial-gradient(60% 80% at 80% 10%, rgba(51,120,251,.55), transparent 60%), radial-gradient(40% 60% at 10% 90%, rgba(255,159,26,.35), transparent 60%);"></div>
+    <div class="container relative py-14 md:py-20">
+      <p class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium ring-1 ring-white/15"><span class="h-1.5 w-1.5 rounded-full bg-status-live"></span> {{week}} · 활성 딜 {{activeCount}}건 · 1분마다 갱신</p>
+      <h1 class="mt-4 max-w-2xl text-3xl font-extrabold leading-tight md:text-5xl">상품권 상테크 핫딜,<br class="hidden sm:block" /> 카드 조건까지 한눈에</h1>
+      <p class="mt-4 max-w-xl text-base text-white/75 md:text-lg">뽐뿌·클리앙·루리웹·퀘이사존에 올라온 상품권 딜을 모아, 어느 판매처에서 어떤 카드로 얼마에 살 수 있는지, 1인 한도는 얼마인지, 몇 주째 반복되는 조건인지 정리해 보여드립니다.</p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href="#deals" class="btn-primary">지금 진행 중인 딜 보기</a>
+        <a href="/weekly/" class="btn bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/15">주간 비교</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 필터 + 딜 목록 -->
+  <section id="deals" class="container py-10 md:py-14">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h2 class="text-2xl font-extrabold">진행 중인 딜</h2>
+        <p class="mt-1 text-sm text-ink-500">점수는 커뮤니티 반응(소스별 정규화)·할인율·최신성을 합산한 값입니다. 가격·조건은 판매처에서 다시 확인하세요.</p>
+      </div>
+      <form class="flex flex-wrap gap-2" role="search" aria-label="딜 필터" data-filter-form>
+        <label class="sr-only" for="f-brand">브랜드</label>
+        <select id="f-brand" name="brand" class="rounded-md border-ink-300 text-sm"><option value="">모든 브랜드</option>{{brandOptions}}</select>
+        <label class="sr-only" for="f-status">상태</label>
+        <select id="f-status" name="status" class="rounded-md border-ink-300 text-sm"><option value="">진행 중 + 임박</option><option value="live">진행 중</option><option value="ending">종료 임박</option><option value="ended">종료</option></select>
+        <label class="sr-only" for="f-card">카드 조건</label>
+        <select id="f-card" name="card" class="rounded-md border-ink-300 text-sm"><option value="">카드 조건 무관</option><option value="yes">카드 조건 있음</option><option value="no">카드 조건 없음</option></select>
+      </form>
+    </div>
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-deal-grid>
+      {{dealCards}}
+    </div>
+    <p class="mt-6 hidden rounded-md bg-surface-muted p-6 text-center text-sm text-ink-500" data-empty>조건에 맞는 딜이 없습니다.</p>
+  </section>
+
+  <!-- 상테크 안내 -->
+  <section class="bg-white border-y border-ink-100">
+    <div class="container grid gap-8 py-12 md:grid-cols-3">
+      <div><h2 class="text-lg font-bold">할인율만 보지 마세요</h2><p class="mt-2 text-sm leading-relaxed text-ink-700">같은 8% 할인이라도 즉시할인인지 청구할인인지, 1인 한도가 몇 매인지에 따라 실제로 챙길 수 있는 금액이 달라집니다. 카드별 조건을 함께 표시합니다.</p></div>
+      <div><h2 class="text-lg font-bold">반복되는 딜을 구분합니다</h2><p class="mt-2 text-sm leading-relaxed text-ink-700">주 단위로 같은 조건의 딜을 묶어서 "이번 주 새로 뜬 조건"과 "매주 반복되는 상시 특가"를 구분하고, 주간 비교 페이지에서 변화를 추적할 수 있습니다.</p></div>
+      <div><h2 class="text-lg font-bold">출처를 투명하게</h2><p class="mt-2 text-sm leading-relaxed text-ink-700">모든 딜은 원문 커뮤니티 글로 연결됩니다. 제목과 링크만 수집하며, 삭제 요청은 24시간 내 반영합니다. 수집 데이터는 <a href="/open-data/" class="text-brand-700 underline">공개 피드</a>로 제공합니다.</p></div>
+    </div>
+  </section>
+</main>
+{{> footer}}

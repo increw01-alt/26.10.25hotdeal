@@ -1,0 +1,53 @@
+name: Deploy Site
+# 정적 사이트를 Cloudflare Pages에 배포한다 (D-07, D-08).
+# 트리거: site/·shared/ 변경 push, 수동 실행, 그리고 1시간마다(새 딜 페이지·주간 아카이브 반영).
+# 데이터는 Worker API에서 가져오며, API 실패 또는 0건이면 빌드가 실패해 기존 배포가 유지된다 (D-03).
+# 필요한 secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+# 필요한 vars: CF_PAGES_PROJECT (Pages 프로젝트명), API_BASE (Worker URL, 미설정 시 site.config.json 값)
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "shared/**", ".github/workflows/deploy-site.yml"]
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      allow_empty:
+        description: "API 없이 샘플 데이터로 배포 (초기 1회용)"
+        type: boolean
+        default: false
+concurrency: { group: deploy-site, cancel-in-progress: true }
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults: { run: { working-directory: site } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: site/package-lock.json }
+      - run: npm ci
+      - name: HTML 빌드 (API 데이터)
+        run: node scripts/build.mjs
+        env:
+          API_BASE: ${{ vars.API_BASE }}
+          ALLOW_EMPTY: ${{ inputs.allow_empty && '1' || '' }}
+      - name: CSS 빌드
+        run: npm run build:css
+      - name: Pages 배포 (브랜치 명시, 프리뷰 배포 방지 D-07)
+        run: npx wrangler pages deploy dist --project-name="${{ vars.CF_PAGES_PROJECT }}" --branch=main --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: 운영 알림 (실패해도 배포에 영향 없음, D-03)
+        if: always()
+        continue-on-error: true
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          STATUS: ${{ job.status }}
+          SHA: ${{ github.sha }}
+        run: |
+          [ -z "$TG_TOKEN" ] && { echo "telegram not configured"; exit 0; }
+          curl -sS --max-time 10 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="$TG_CHAT" --data-urlencode text="[site] deploy ${STATUS} (${SHA:0:7})"

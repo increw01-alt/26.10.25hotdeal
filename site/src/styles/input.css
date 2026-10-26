@@ -1,0 +1,26 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { @apply scroll-smooth; }
+  body { @apply bg-surface-page text-ink-900 font-sans antialiased; }
+  :focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-2; }
+}
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition; }
+  .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-pop; }
+  .btn-ghost { @apply btn bg-white text-ink-700 ring-1 ring-ink-300 hover:bg-surface-muted; }
+  .btn[aria-disabled="true"] { @apply bg-ink-300 text-white cursor-not-allowed shadow-none hover:bg-ink-300; }
+  .card { @apply rounded-lg bg-surface-card shadow-card ring-1 ring-ink-100; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium; }
+  .chip-live { @apply chip bg-green-50 text-status-live; }
+  .chip-ending { @apply chip bg-amber-50 text-status-ending; }
+  .chip-ended { @apply chip bg-slate-100 text-status-ended; }
+  .chip-card { @apply chip bg-brand-50 text-brand-700; }
+  .chip-affiliate { @apply chip bg-amber-50 text-amber-800 ring-1 ring-amber-200; }
+  .stat { @apply rounded-md bg-surface-muted px-3 py-2; }
+  .stat dt { @apply text-[11px] font-medium text-ink-500; }
+  .stat dd { @apply text-base font-bold tabular-nums text-ink-900; }
+}

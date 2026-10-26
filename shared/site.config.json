@@ -1,0 +1,20 @@
+{
+  "$comment": "사이트 설정. REPLACE_ 접두사는 확정 후 교체할 값. affiliate.enabled는 D-05에 따라 기본 false.",
+  "siteName": "REPLACE_SITE_NAME",
+  "siteUrl": "https://REPLACE_WITH_SITE_URL",
+  "apiBase": "https://REPLACE_WITH_WORKER_URL",
+  "tagline": "상품권 상테크 핫딜을 한눈에",
+  "locale": "ko_KR",
+  "timezone": "Asia/Seoul",
+  "operator": { "name": "REPLACE_OPERATOR_NAME", "email": "REPLACE_CONTACT_EMAIL" },
+  "affiliate": {
+    "enabled": false,
+    "label": "제휴 링크",
+    "topNotice": "이 페이지의 일부 링크는 제휴 링크이며, 구매 시 운영자가 수수료를 받을 수 있습니다. 가격·조건은 제휴 여부와 무관하게 동일하게 표시합니다.",
+    "footerNotice": "이 사이트는 쿠팡 파트너스 활동의 일환으로 수수료를 제공받을 수 있습니다."
+  },
+  "rates": { "enabled": false, "sourceName": "모두의시세", "sourceUrl": "https://REPLACE_WITH_RATES_SITE", "jsonUrl": "https://REPLACE_WITH_RATES_JSON_URL", "attribution": "시세 출처: 모두의시세" },
+  "guards": { "staleHours": 2, "minActiveRatio": 0.5 },
+  "archive": { "dealPageDaysAfterEnd": 30 },
+  "feeds": { "cacheSeconds": 900, "termsPath": "/open-data/" }
+}

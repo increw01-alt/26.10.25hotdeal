@@ -113,7 +113,34 @@ curl.exe -s -H "x-admin-token: $T" "$A/__admin/probe?url=…&ua=feed&h=Referer:h
 
 봇 UA는 두 가지(`bot`, `feed`) 모두 봇임을 밝히고 연락처 URL을 포함한다. 브라우저로 위장하는 UA는 출처 정책상 쓰지 않는다.
 
-## 7. 운영 명령 모음
+## 7. 중계 수집기 (Worker IP가 차단된 소스)
+
+2026-10-27 확인: 뽐뿌(빈 응답)·루리웹(522)·퀘이사존(403)·에펨코리아(430)는 Cloudflare Workers IP의 요청을 받지 않는다. 클리앙만 Worker에서 직접 수집된다.
+그래서 **뽐뿌·루리웹은 다른 네트워크(사용자 PC 또는 국내 서버)에서 가져와 Worker로 넘기는 중계 방식**을 쓴다. 파서는 Worker와 같은 코드(`worker/src/relay.ts` → `dist/relay.mjs`)다.
+
+- 중계가 10분 안에 들어온 소스는 Cron이 직접 가져오지 않는다(중복·실패 로그 방지). 중계가 멈추면 10분 뒤 Cron이 다시 시도한다.
+- 중계 결과도 `source_state`·`run_log`에 기록되므로 `/api/status.json`의 `last_updated`·`relay`에서 확인된다.
+- `<ADMIN_TOKEN>`은 `wrangler secret put ADMIN_TOKEN`으로 정한 값. 문서·커밋에 실제 값을 적지 않는다.
+
+```powershell
+# 점검(1회) — 토큰을 물어보면 입력
+powershell -ExecutionPolicy Bypass -File scripts\relay-start.ps1 -Once
+# 상시(60초마다, 창을 닫으면 멈춤)
+powershell -ExecutionPolicy Bypass -File scripts\relay-start.ps1
+```
+
+**PC 켜질 때 자동 시작(작업 스케줄러)**: 토큰은 사용자 환경변수 `RELAY_TOKEN`에 넣어 두고 스크립트가 읽게 한다. 관리자 PowerShell에서 한 번 실행.
+```powershell
+[Environment]::SetEnvironmentVariable("RELAY_TOKEN", "<ADMIN_TOKEN>", "User")
+$act = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"C:\Users\OK\Desktop\블로그이미지\26.10.25 핫딜\scripts\relay-start.ps1`""
+$trg = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "HotdealRelay" -Action $act -Trigger $trg -Settings (New-ScheduledTaskSettingsSet -RestartCount 99 -RestartInterval (New-TimeSpan -Minutes 1)) -Force
+```
+중지: `Stop-ScheduledTask -TaskName HotdealRelay`, 삭제: `Unregister-ScheduledTask -TaskName HotdealRelay -Confirm:$false`.
+
+PC를 항상 켜 둘 수 없으면 국내 저가 VPS(월 5천원대)에 Node를 설치하고 `RELAY_TOKEN=… node dist/relay.mjs --api … --loop 60`을 `systemd` 또는 `pm2`로 돌린다. 중계는 표준 Node 20+만 있으면 어디서든 실행된다.
+
+## 8. 운영 명령 모음
 
 ```bash
 cd worker
@@ -125,7 +152,7 @@ npx wrangler d1 execute hotdeal-hub --remote --command "SELECT source, post_id, 
 npx wrangler d1 execute hotdeal-hub --remote --command "INSERT OR IGNORE INTO blocklist (source, post_id) VALUES ('ppomppu','123456'); DELETE FROM deal_posts WHERE source='ppomppu' AND post_id='123456'"
 ```
 
-## 8. 임베드 위젯 배포 확인
+## 9. 임베드 위젯 배포 확인
 
 - `https://<SITE>/open-data/`에서 옵션을 고르면 코드가 생성되고 미리보기가 실제 피드로 그려진다.
 - 외부 사이트 테스트: 아무 HTML 파일에 아래를 넣고 연다.

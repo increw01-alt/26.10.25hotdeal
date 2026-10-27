@@ -1,7 +1,7 @@
 import type { Env } from "./types";
 import { num, BRANDS, MERCHANTS } from "./config";
 import { isoWeekKST } from "./dedupe";
-import { buildIngestCtx, finalizeRun, ingestPosts, runCollection } from "./collect";
+import { buildIngestCtx, finalizeRun, ingestPosts, runCollection, recordRelayRun } from "./collect";
 import { fetchRaw } from "./fetchers/http";
 import { fetchSource } from "./fetchers";
 import { enabledSources, SOURCES } from "./config";
@@ -35,7 +35,7 @@ export async function handleApi(req: Request, env: Env): Promise<Response> {
     const expected = (env.ADMIN_TOKEN ?? "").trim();
     const given = (req.headers.get("x-admin-token") ?? url.searchParams.get("token") ?? "").trim();
     if (!expected || given !== expected) return json({ error: "forbidden", hint: expected ? "x-admin-token header mismatch" : "ADMIN_TOKEN secret not set" }, 403);
-    try { return await handleAdmin(path, url, env); } catch (e) { return json({ error: (e as Error).message }, 500); }
+    try { return await handleAdmin(req, path, url, env); } catch (e) { return json({ error: (e as Error).message }, 500); }
   }
   if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
 
@@ -124,6 +124,7 @@ async function dealDetail(env: Env, id: string) {
 async function statusPayload(env: Env) {
   const last = await env.DB.prepare("SELECT ran_at, active_deals, guard_tripped FROM run_log ORDER BY id DESC LIMIT 1").first<{ ran_at: string; active_deals: number; guard_tripped: number }>();
   const sources = (await env.DB.prepare("SELECT source, consecutive_fail, paused_until, last_ok_at, last_item_count FROM source_state").all()).results;
+  const relay = (await env.DB.prepare("SELECT source, last_at FROM relay_state").all().catch(() => ({ results: [] }))).results;
   const staleHours = num(env, "GUARD_STALE_HOURS", 2);
   const ageHours = last ? (Date.now() - new Date(last.ran_at).getTime()) / 3600000 : null;
   return {
@@ -132,6 +133,7 @@ async function statusPayload(env: Env) {
     stale: ageHours === null || ageHours > staleHours,
     guard_tripped: !!last?.guard_tripped,
     sources,
+    relay,
   };
 }
 
@@ -157,8 +159,9 @@ function json(body: unknown, status = 200, env?: Env, cacheSeconds?: number): Re
  * /__admin/sources          source_state 전체(last_error 포함)
  * /__admin/queue            parse_queue 미해결 건
  */
-async function handleAdmin(path: string, url: URL, env: Env): Promise<Response> {
+async function handleAdmin(req: Request, path: string, url: URL, env: Env): Promise<Response> {
   const nocache = (b: unknown, status = 200) => json(b, status, env, 0);
+  const readJson = async (_u: URL) => { if (req.method !== "POST") return null; try { return await req.json(); } catch { return null; } };
   if (path === "/__admin/probe") {
     const target = url.searchParams.get("url") ?? "";
     if (!/^https?:\/\//.test(target)) return nocache({ error: "url 파라미터 필요" }, 400);
@@ -181,6 +184,18 @@ async function handleAdmin(path: string, url: URL, env: Env): Promise<Response> 
       return nocache({ source: slug, ms: Date.now() - started, count: posts.length, posts: posts.slice(0, Number(url.searchParams.get("n") ?? 20)) });
     } catch (e) { return nocache({ source: slug, ms: Date.now() - started, error: (e as Error).message }); }
   }
+  if (path === "/__admin/ingest") {
+    // 중계 수집기(dist/relay.mjs)가 보낸 원본 글 목록을 받아 Worker 파이프라인에 넣는다.
+    const body = (await readJson(url)) as { posts?: RawPost[]; errors?: Record<string, string>; counts?: Record<string, number>; relay?: unknown } | null;
+    if (!body || !Array.isArray(body.posts)) return nocache({ error: "body.posts 배열 필요" }, 400);
+    const posts = body.posts.filter((p) => p && typeof p.source === "string" && typeof p.postId === "string" && typeof p.url === "string" && typeof p.title === "string").slice(0, 2000);
+    const ctx = await buildIngestCtx(env);
+    const r = await ingestPosts(env, posts, ctx);
+    await finalizeRun(env, ctx.medians);
+    const host = typeof (body.relay as { host?: unknown } | undefined)?.host === "string" ? String((body.relay as { host: string }).host).slice(0, 60) : undefined;
+    const summary = await recordRelayRun(env, { counts: body.counts ?? {}, errors: body.errors ?? {}, parsed: r.parsed, newDeals: r.newDeals, received: posts.length, host });
+    return nocache({ ok: true, received: posts.length, ...r, ...summary });
+  }
   if (path === "/__admin/run") {
     const started = Date.now();
     const s = await runCollection(env);
@@ -195,7 +210,8 @@ async function handleAdmin(path: string, url: URL, env: Env): Promise<Response> 
     return nocache({ reset: slug ?? "all", changed: r.meta.changes });
   }
   if (path === "/__admin/sources") {
-    return nocache({ enabled: enabledSources(env).map((x) => x.slug), state: (await env.DB.prepare("SELECT * FROM source_state").all()).results });
+    const relay = (await env.DB.prepare("SELECT * FROM relay_state").all().catch(() => ({ results: [] }))).results;
+    return nocache({ enabled: enabledSources(env).map((x) => x.slug), relay, state: (await env.DB.prepare("SELECT * FROM source_state").all()).results });
   }
   if (path === "/__admin/queue") {
     return nocache({ queue: (await env.DB.prepare("SELECT source, post_id, title, reason, queued_at FROM parse_queue WHERE resolved = 0 ORDER BY id DESC LIMIT 50").all()).results });

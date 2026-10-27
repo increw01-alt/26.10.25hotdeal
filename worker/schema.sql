@@ -119,3 +119,10 @@ CREATE TABLE IF NOT EXISTS parse_queue (
   resolved  INTEGER NOT NULL DEFAULT 0,
   UNIQUE(source, post_id)
 );
+
+-- 중계 수집기 상태: 최근 10분 내 중계가 들어온 소스는 Cron이 직접 가져오지 않는다 (Worker IP 차단 소스용)
+CREATE TABLE IF NOT EXISTS relay_state (
+  source   TEXT PRIMARY KEY,
+  last_at  TEXT NOT NULL,
+  host     TEXT
+);

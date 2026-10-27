@@ -15,7 +15,16 @@
 
 브랜치: `claude/upbeat-noether-60p86o` (아직 `main` 없음)
 
-## 멈춘 지점
+## 2026-10-27 진행
+
+- Cloudflare 초기화 완료: D1 `hotdeal-hub`, Worker `https://hotdeal-hub-worker.increw01.workers.dev`, Pages `https://hotdeal-hub.pages.dev`(샘플 데이터).
+- 설정값 기입(사이트명 "핫딜 허브", 운영자, 메일) → 로컬 커밋됨. **아직 `git push`·GitHub Secrets·main 브랜치 전**.
+- 관리 엔드포인트 `/__admin/*` (secret `ADMIN_TOKEN`, 값은 메모장에만 보관), 소스 조사 결과:
+  - 클리앙: Worker에서 HTML 파서로 수집 성공
+  - 뽐뿌(빈 응답)·루리웹(522)·퀘이사존(403)·에펨코리아(430): Worker IP 차단 → **중계 수집기**(`scripts/relay-start.ps1`) 도입. 뽐뿌·루리웹은 PC에서 중계.
+- 다음: 중계 1회 점검 → 상시 실행 → `/api/status.json`에서 딜 쌓이는지 확인 → git push → GitHub Secrets → main 브랜치.
+
+## 멈춘 지점 (10-26 기준, 참고용)
 
 **배포 2단계 Cloudflare 준비** 중. Cloudflare 대시보드에 로그인한 상태까지 확인했다.
 

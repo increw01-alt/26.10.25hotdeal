@@ -22,7 +22,28 @@
 - 관리 엔드포인트 `/__admin/*` (secret `ADMIN_TOKEN`, 값은 메모장에만 보관), 소스 조사 결과:
   - 클리앙: Worker에서 HTML 파서로 수집 성공
   - 뽐뿌(빈 응답)·루리웹(522)·퀘이사존(403)·에펨코리아(430): Worker IP 차단 → **중계 수집기**(`scripts/relay-start.ps1`) 도입. 뽐뿌·루리웹은 PC에서 중계.
-- 다음: 중계 1회 점검 → 상시 실행 → `/api/status.json`에서 딜 쌓이는지 확인 → git push → GitHub Secrets → main 브랜치.
+- 중계 수집기 PC에서 상시 실행 중(60초, 뽐뿌 15건·루리웹 28건/회). 클리앙은 Worker Cron.
+- `git push` → GitHub Secrets/Variables 등록 → `main` 브랜치 생성·기본 브랜치 전환 완료.
+- **2026-10-27 17:13 Deploy Worker / Deploy Site 첫 실행 성공** (수동 dispatch). 이후 `main` push 시 자동, 사이트는 매시 7분 재빌드.
+- 파서 오탐(적립 이벤트·브랜드명 내부 판매처) 수정 완료, 오탐 딜 1건 삭제(`/__admin/delete`).
+
+## 운영 중 상태 (요약)
+
+| 항목 | 값 |
+|---|---|
+| 사이트 | https://hotdeal-hub.pages.dev |
+| API | https://hotdeal-hub-worker.increw01.workers.dev (`/api/status.json`) |
+| 수집 | 클리앙: Worker Cron 1분 / 뽐뿌·루리웹: PC 중계 60초 / 퀘이사존·에펨코리아: 차단으로 비활성 |
+| 배포 | `main` push → Actions. 작업 브랜치 `claude/upbeat-noether-60p86o`는 CI만 |
+| 관리 | `/__admin/*` + `x-admin-token` (secret ADMIN_TOKEN, 값은 메모장) |
+
+## 남은 일
+
+- 문의 이메일이 임시값(`contact@example.com`) → 실제 주소로 교체 후 main 배포
+- ADMIN_TOKEN을 대화에 노출되지 않은 값으로 교체
+- 중계 수집기 자동 시작(작업 스케줄러) 또는 국내 VPS 이전
+- 클리앙 추천 수 셀렉터 확인(현재 0으로 들어옴), 파싱 실패 큐 점검
+- 커스텀 도메인, 검색엔진 사이트맵 제출, 2주 후 점수 가중치 보정
 
 ## 멈춘 지점 (10-26 기준, 참고용)
 

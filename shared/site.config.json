@@ -1,12 +1,12 @@
 {
   "$comment": "사이트 설정. REPLACE_ 접두사는 확정 후 교체할 값. affiliate.enabled는 D-05에 따라 기본 false.",
-  "siteName": "REPLACE_SITE_NAME",
-  "siteUrl": "https://REPLACE_WITH_SITE_URL",
-  "apiBase": "https://REPLACE_WITH_WORKER_URL",
+  "siteName": "핫딜 허브",
+  "siteUrl": "https://hotdeal-hub.pages.dev",
+  "apiBase": "https://hotdeal-hub-worker.increw01.workers.dev",
   "tagline": "상품권 상테크 핫딜을 한눈에",
   "locale": "ko_KR",
   "timezone": "Asia/Seoul",
-  "operator": { "name": "REPLACE_OPERATOR_NAME", "email": "REPLACE_CONTACT_EMAIL" },
+  "operator": { "name": "핫딜 허브 운영팀", "email": "contact@example.com" },
   "affiliate": {
     "enabled": false,
     "label": "제휴 링크",

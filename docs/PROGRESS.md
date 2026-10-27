@@ -15,6 +15,30 @@
 
 브랜치: `claude/upbeat-noether-60p86o` (아직 `main` 없음)
 
+## 내일 시작할 때 (2026-10-28)
+
+1. 이 파일을 읽고 아래 "확인 순서"를 먼저 돈다.
+2. 로컬 PC: `cd "C:\Users\OK\Desktop\블로그이미지\26.10.25 핫딜"` → `git pull origin main`
+3. 작업은 `claude/upbeat-noether-60p86o`에 올리고 `main`에도 바로 반영한다(사용자 승인됨). `main` push = 자동 배포.
+
+### 확인 순서
+- GitHub Actions에서 `event: schedule` 실행이 생겼는지(Relay Collect 5분, Deploy Site 매시 7분). 10-27 19:00 KST 기준 **0건**.
+  - 여전히 0건이면: 사이트 재빌드도 Worker가 1시간마다 `deploy-site.yml`을 workflow_dispatch로 깨우도록 플랜 B 확장(`worker/src/dispatch.ts`에 함수 하나 추가, 같은 PAT 사용).
+- `https://hotdeal-hub-worker.increw01.workers.dev/api/status.json`: `relay[].stale`이 전부 false인지, `active_deals`가 늘고 있는지.
+- 관리 점검(두 번째 PowerShell, `worker` 폴더): `$T="<ADMIN_TOKEN>"; $A="https://hotdeal-hub-worker.increw01.workers.dev"` 후
+  `curl.exe -s -H "x-admin-token: $T" "$A/__admin/sources"`, `"$A/__admin/queue"`(파싱 보류 글 확인).
+
+### 바로 할 수 있는 작은 일
+- 문의 이메일 교체: `shared/site.config.json`의 `operator.email`(현재 `contact@example.com`) → 실제 주소. push하면 다음 빌드에 반영.
+- ADMIN_TOKEN 교체(대화에 노출됨): `"새값" | npx wrangler secret put ADMIN_TOKEN` → GitHub secret `RELAY_TOKEN`도 같은 값으로 갱신.
+- 클리앙 추천 수가 0으로 들어옴 → `/__admin/probe?url=https://www.clien.net/service/board/jirum&n=6000`로 마크업 확인 후 `clien.ts` 셀렉터 수정.
+- 파싱 보류 큐(`parse_queue`) 내용 보고 파서 규칙 보강.
+
+### 이번 주 안에
+- 커스텀 도메인 결정·연결(`docs/DEPLOY.md` 4단계).
+- Google Search Console·네이버 서치어드바이저에 `sitemap.xml` 제출.
+- 2주 뒤 `score.ts` 가중치 보정(소스별 중앙값 데이터 확인).
+
 ## 2026-10-27 진행
 
 - Cloudflare 초기화 완료: D1 `hotdeal-hub`, Worker `https://hotdeal-hub-worker.increw01.workers.dev`, Pages `https://hotdeal-hub.pages.dev`(샘플 데이터).
@@ -26,6 +50,11 @@
 - `git push` → GitHub Secrets/Variables 등록 → `main` 브랜치 생성·기본 브랜치 전환 완료.
 - **2026-10-27 17:13 Deploy Worker / Deploy Site 첫 실행 성공** (수동 dispatch). 이후 `main` push 시 자동, 사이트는 매시 7분 재빌드.
 - 파서 오탐(적립 이벤트·브랜드명 내부 판매처) 수정 완료, 오탐 딜 1건 삭제(`/__admin/delete`).
+- 뽐뿌 쿠폰게시판(`rss.php?id=coupon`) 소스 추가. `money`·`ppomppu4`·`ppomppu8`은 무관 게시판이라 제외.
+- GitHub Actions 중계(`relay.yml`) 도입 → GitHub IP는 차단 안 됨 확인 → 기본 경로로 전환(5분 잡 + 60초 루프).
+- GitHub `schedule`이 자동 실행되지 않아 **플랜 B**: Worker Cron이 중계 공백 2분 초과 시 `workflow_dispatch`(fine-grained PAT, secret `GITHUB_DISPATCH_TOKEN`). 09:45 자동 실행 확인.
+- 중계 전용 소스(`relay_only`)는 Worker가 직접 시도하지 않도록 변경(서킷 브레이커 오작동 방지).
+- 저장소는 공개(Actions 무료). secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `RELAY_TOKEN` / vars: `CF_PAGES_PROJECT`, `API_BASE`. Worker secrets: `ADMIN_TOKEN`, `GITHUB_DISPATCH_TOKEN`.
 
 ## 운영 중 상태 (요약)
 

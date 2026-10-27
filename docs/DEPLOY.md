@@ -96,7 +96,20 @@ curl -s https://<SITE>/api/deals.json | head -c 300   # 정적 사본
 - Google Search Console·네이버 서치어드바이저에 `sitemap.xml` 제출.
 - 2주 뒤 `source_state.median_votes_7d`를 보고 `worker/src/score.ts` 가중치 보정(D-10).
 
-## 6. 운영 명령 모음
+## 6. 관리용 진단 엔드포인트
+
+`worker` 폴더에서 `npx wrangler secret put ADMIN_TOKEN`으로 비밀번호를 정해 두면 아래 주소를 쓸 수 있다. 헤더 `x-admin-token`이 일치해야 하며, 없으면 403.
+
+```powershell
+$T = "비밀번호"; $A = "https://hotdeal-hub-worker.increw01.workers.dev"
+curl.exe -s -H "x-admin-token: $T" "$A/__admin/sources"                 # 소스별 상태 + 마지막 오류
+curl.exe -s -H "x-admin-token: $T" "$A/__admin/run"                     # 수집 1회 즉시 실행
+curl.exe -s -H "x-admin-token: $T" "$A/__admin/fetch?source=ppomppu"    # 한 소스만 가져와 파싱 결과 확인
+curl.exe -s -H "x-admin-token: $T" "$A/__admin/probe?url=https://www.ppomppu.co.kr/rss.php?id=ppomppu"  # Worker 관점의 원본 응답
+curl.exe -s -H "x-admin-token: $T" "$A/__admin/queue"                   # 파싱 실패 큐
+```
+
+## 7. 운영 명령 모음
 
 ```bash
 cd worker
@@ -108,7 +121,7 @@ npx wrangler d1 execute hotdeal-hub --remote --command "SELECT source, post_id, 
 npx wrangler d1 execute hotdeal-hub --remote --command "INSERT OR IGNORE INTO blocklist (source, post_id) VALUES ('ppomppu','123456'); DELETE FROM deal_posts WHERE source='ppomppu' AND post_id='123456'"
 ```
 
-## 7. 임베드 위젯 배포 확인
+## 8. 임베드 위젯 배포 확인
 
 - `https://<SITE>/open-data/`에서 옵션을 고르면 코드가 생성되고 미리보기가 실제 피드로 그려진다.
 - 외부 사이트 테스트: 아무 HTML 파일에 아래를 넣고 연다.

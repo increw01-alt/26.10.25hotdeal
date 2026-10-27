@@ -1,22 +1,42 @@
 import type { Env } from "../types";
-import { num } from "../config";
+import { num, DEFAULT_TIMEOUT_MS } from "../config";
 
-/** timeout·UA 적용 fetch. 실패 시 예외. */
-export async function fetchText(env: Env, url: string, accept = "*/*"): Promise<string> {
+export interface RawResponse { status: number; contentType: string; bytes: number; text: string; finalUrl: string; ms: number }
+
+/** timeout·UA 적용 fetch. HTTP 오류도 예외 없이 돌려준다(진단용). */
+export async function fetchRaw(env: Env, url: string, accept = "*/*"): Promise<RawResponse> {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), num(env, "FETCH_TIMEOUT_MS", 10000));
+  const started = Date.now();
+  // 소스 조사 결과 루리웹이 Worker에서 느리게 응답 → sources.json 기본값(20초) 이상을 보장
+  const timeoutMs = Math.max(num(env, "FETCH_TIMEOUT_MS", DEFAULT_TIMEOUT_MS), DEFAULT_TIMEOUT_MS);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
-      headers: { "user-agent": env.USER_AGENT, accept, "accept-language": "ko-KR,ko;q=0.9" },
+      headers: { "user-agent": env.USER_AGENT, accept, "accept-language": "ko-KR,ko;q=0.9", "cache-control": "no-cache" },
       redirect: "follow",
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
     const buf = await res.arrayBuffer();
-    return decodeKorean(buf, res.headers.get("content-type") ?? "");
+    const contentType = res.headers.get("content-type") ?? "";
+    return { status: res.status, contentType, bytes: buf.byteLength, text: decodeKorean(buf, contentType), finalUrl: res.url, ms: Date.now() - started };
+  } catch (e) {
+    const err = e as Error;
+    throw new Error(err.name === "AbortError" ? `timeout ${timeoutMs}ms ${url}` : `${err.message} ${url}`);
   } finally {
     clearTimeout(t);
   }
+}
+
+/** 본문 텍스트. 2xx가 아니면 예외. */
+export async function fetchText(env: Env, url: string, accept = "*/*"): Promise<string> {
+  const r = await fetchRaw(env, url, accept);
+  if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status} ${url} ${snippet(r.text)}`);
+  return r.text;
+}
+
+/** 오류 메시지용 응답 요약 (상태 파악에 필요한 최소한만) */
+export function snippet(text: string, n = 160): string {
+  return `[${text.replace(/\s+/g, " ").slice(0, n)}]`;
 }
 
 /** EUC-KR 응답(뽐뿌 등) 대응 */

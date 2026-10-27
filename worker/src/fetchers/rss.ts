@@ -1,5 +1,5 @@
 import type { Env, RawPost, SourceDef } from "../types";
-import { fetchText, decodeEntities, stripTags } from "./http";
+import { fetchRaw, decodeEntities, stripTags, snippet } from "./http";
 
 /** RSS 2.0 / Atom 공용 파서 (Workers에 DOMParser가 없어 정규식 사용) */
 export function parseFeed(xml: string, source: string): RawPost[] {
@@ -47,8 +47,9 @@ export function extractPostId(link: string, guid: string): string {
 }
 
 export async function fetchRss(env: Env, src: SourceDef): Promise<RawPost[]> {
-  const xml = await fetchText(env, src.url, "application/rss+xml, application/xml, text/xml, */*");
-  const items = parseFeed(xml, src.slug);
-  if (items.length === 0) throw new Error(`empty feed ${src.slug}`);
+  const r = await fetchRaw(env, src.url, "application/rss+xml, application/xml, text/xml, */*");
+  if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status} ${src.url} ${snippet(r.text)}`);
+  const items = parseFeed(r.text, src.slug);
+  if (items.length === 0) throw new Error(`empty feed ${src.slug} status=${r.status} ct=${r.contentType.split(";")[0]} bytes=${r.bytes} ${snippet(r.text)}`);
   return items;
 }

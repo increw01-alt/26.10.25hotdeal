@@ -1,7 +1,10 @@
 import type { Env } from "./types";
 import { num, BRANDS, MERCHANTS } from "./config";
 import { isoWeekKST } from "./dedupe";
-import { buildIngestCtx, finalizeRun, ingestPosts } from "./collect";
+import { buildIngestCtx, finalizeRun, ingestPosts, runCollection } from "./collect";
+import { fetchRaw } from "./fetchers/http";
+import { fetchSource } from "./fetchers";
+import { enabledSources, SOURCES } from "./config";
 import type { RawPost } from "./types";
 
 /**
@@ -25,6 +28,11 @@ export async function handleApi(req: Request, env: Env): Promise<Response> {
     const r = await ingestPosts(env, posts, ctx);
     await finalizeRun(env, ctx.medians);
     return json({ ok: true, ...r }, 200, env, 0);
+  }
+  // 관리용 진단 엔드포인트. secret ADMIN_TOKEN 과 x-admin-token 헤더가 일치할 때만 동작.
+  if (path.startsWith("/__admin/")) {
+    if (!env.ADMIN_TOKEN || req.headers.get("x-admin-token") !== env.ADMIN_TOKEN) return json({ error: "forbidden" }, 403);
+    try { return await handleAdmin(path, url, env); } catch (e) { return json({ error: (e as Error).message }, 500); }
   }
   if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
 
@@ -136,4 +144,47 @@ function json(body: unknown, status = 200, env?: Env, cacheSeconds?: number): Re
     status,
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": status === 200 ? `public, max-age=${maxAge}, s-maxage=${maxAge}` : "no-store", ...cors() },
   });
+}
+
+
+/**
+ * /__admin/probe?url=…      Worker 관점에서 URL 요청 → 상태·헤더·본문 앞부분 (PC와 Worker 응답 차이 확인용)
+ * /__admin/fetch?source=…   해당 소스의 fetcher 실행 → 파싱된 글 목록 (파서 점검용)
+ * /__admin/run              수집 1회 즉시 실행 → 요약
+ * /__admin/sources          source_state 전체(last_error 포함)
+ * /__admin/queue            parse_queue 미해결 건
+ */
+async function handleAdmin(path: string, url: URL, env: Env): Promise<Response> {
+  const nocache = (b: unknown, status = 200) => json(b, status, env, 0);
+  if (path === "/__admin/probe") {
+    const target = url.searchParams.get("url") ?? "";
+    if (!/^https?:\/\//.test(target)) return nocache({ error: "url 파라미터 필요" }, 400);
+    const r = await fetchRaw(env, target, url.searchParams.get("accept") ?? "application/rss+xml, application/xml, text/html, */*");
+    return nocache({ url: target, status: r.status, contentType: r.contentType, bytes: r.bytes, ms: r.ms, finalUrl: r.finalUrl,
+      items: (r.text.match(/<item\b/gi) ?? []).length, kind: /<rss|<feed|<rdf/i.test(r.text.slice(0, 500)) ? "feed" : /<html/i.test(r.text.slice(0, 500)) ? "html" : "other",
+      botwall: /cf-browser-verification|challenge-platform|captcha|Just a moment|접근이 차단|비정상적인 접근/i.test(r.text),
+      head: r.text.slice(0, Number(url.searchParams.get("n") ?? 1500)) });
+  }
+  if (path === "/__admin/fetch") {
+    const slug = url.searchParams.get("source") ?? "";
+    const src = SOURCES.find((s) => s.slug === slug);
+    if (!src) return nocache({ error: "unknown source", available: SOURCES.map((s) => s.slug) }, 400);
+    const started = Date.now();
+    try {
+      const posts = await fetchSource(env, src);
+      return nocache({ source: slug, ms: Date.now() - started, count: posts.length, posts: posts.slice(0, Number(url.searchParams.get("n") ?? 20)) });
+    } catch (e) { return nocache({ source: slug, ms: Date.now() - started, error: (e as Error).message }); }
+  }
+  if (path === "/__admin/run") {
+    const started = Date.now();
+    const s = await runCollection(env);
+    return nocache({ ...s, ms: Date.now() - started, enabled: enabledSources(env).map((x) => x.slug) });
+  }
+  if (path === "/__admin/sources") {
+    return nocache({ enabled: enabledSources(env).map((x) => x.slug), state: (await env.DB.prepare("SELECT * FROM source_state").all()).results });
+  }
+  if (path === "/__admin/queue") {
+    return nocache({ queue: (await env.DB.prepare("SELECT source, post_id, title, reason, queued_at FROM parse_queue WHERE resolved = 0 ORDER BY id DESC LIMIT 50").all()).results });
+  }
+  return nocache({ error: "not found", routes: ["/__admin/probe?url=", "/__admin/fetch?source=", "/__admin/run", "/__admin/sources", "/__admin/queue"] }, 404);
 }

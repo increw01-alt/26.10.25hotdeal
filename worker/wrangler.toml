@@ -33,7 +33,7 @@ CB_FAIL_THRESHOLD = "5"
 CB_COOLDOWN_MIN = "60"
 FEED_CACHE_SECONDS = "900"
 FETCH_TIMEOUT_MS = "10000"
-USER_AGENT = "HotdealHubBot/0.1 (+https://hotdeal-hub.pages.dev/about/bot)"
+USER_AGENT = "Mozilla/5.0 (compatible; HotdealHubBot/0.1; +https://hotdeal-hub.pages.dev/about/)"
 # 에펨코리아 활성화 여부 (D-15)
 ENABLE_FMKOREA = "false"
 

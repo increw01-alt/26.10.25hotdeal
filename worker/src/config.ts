@@ -7,6 +7,14 @@ export const SOURCES: SourceDef[] = (sourcesJson.sources as SourceDef[]).map((s)
   enabled: s.enabled ?? sourcesJson.defaults.enabled,
 }));
 
+/** User-Agent 프리셋. 모두 봇임을 밝히고 연락처 URL을 포함한다(브라우저 위장 금지, 출처 정책). */
+export const UA_PRESETS: Record<string, string> = {
+  feed: "Mozilla/5.0 (compatible; HotdealHubFeedFetcher/0.1; +https://hotdeal-hub.pages.dev/about/)",
+};
+export function userAgent(env: Env, preset?: string): string {
+  return (preset && UA_PRESETS[preset]) || env.USER_AGENT;
+}
+
 export const DEFAULT_TIMEOUT_MS: number = Number(sourcesJson.defaults.fetch_timeout_ms) || 20000;
 
 export const BRANDS = brandsJson.brands as Array<{

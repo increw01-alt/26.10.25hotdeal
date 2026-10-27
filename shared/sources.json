@@ -1,5 +1,5 @@
 {
-  "$comment": "커뮤니티 핫딜 소스 정의. 2026-10-27 PC 조사(scripts/probe-sources.mjs) 결과 반영: 뽐뿌·루리웹 RSS 정상, 클리앙 RSS 없음(HTML), 퀘이사존 봇 차단, 에펨코리아 HTML 응답.",
+  "$comment": "커뮤니티 핫딜 소스 정의. 2026-10-27 PC 조사(scripts/probe-sources.mjs) 결과 반영: 뽐뿌·루리웹 RSS 정상, 클리앙 RSS 없음(HTML), 퀘이사존 봇 차단, 에펨코리아 HTML 응답. 소스별 'ua' 필드(bot|feed: 둘 다 봇임을 밝히고 연락처 URL 포함)와 'headers' 객체(Referer 등)를 지정할 수 있다. 브라우저로 위장하는 UA는 쓰지 않는다(출처 정책).",
   "sources": [
     {
       "slug": "ppomppu",
@@ -60,8 +60,8 @@
       "robots_checked_at": "2026-10-27",
       "rss_verified_at": null,
       "title_pattern_hint": "[쇼핑몰] 상품명 (가격/배송비)",
-      "notes": "RSS 없음(act=rss도 HTML). 게시판 HTML 파싱. Worker IP 차단 가능성 있어 2차 소스, 서킷 브레이커로 자동 중지.",
-      "enabled": true
+      "notes": "Worker에서 HTTP 430 '에펨코리아 보안 시스템' 차단(2026-10-27). 비활성화. PC에서는 200.",
+      "enabled": false
     }
   ],
   "defaults": {

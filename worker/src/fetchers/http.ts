@@ -1,10 +1,14 @@
 import type { Env } from "../types";
-import { num, DEFAULT_TIMEOUT_MS } from "../config";
+import { num, DEFAULT_TIMEOUT_MS, userAgent } from "../config";
 
 export interface RawResponse { status: number; contentType: string; bytes: number; text: string; finalUrl: string; ms: number }
 
 /** timeout·UA 적용 fetch. HTTP 오류도 예외 없이 돌려준다(진단용). */
-export async function fetchRaw(env: Env, url: string, accept = "*/*"): Promise<RawResponse> {
+export interface FetchOpts { accept?: string; ua?: string; headers?: Record<string, string> }
+
+export async function fetchRaw(env: Env, url: string, acceptOrOpts: string | FetchOpts = "*/*"): Promise<RawResponse> {
+  const opts: FetchOpts = typeof acceptOrOpts === "string" ? { accept: acceptOrOpts } : acceptOrOpts;
+  const accept = opts.accept ?? "*/*";
   const ctrl = new AbortController();
   const started = Date.now();
   // 소스 조사 결과 루리웹이 Worker에서 느리게 응답 → sources.json 기본값(20초) 이상을 보장
@@ -13,7 +17,7 @@ export async function fetchRaw(env: Env, url: string, accept = "*/*"): Promise<R
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
-      headers: { "user-agent": env.USER_AGENT, accept, "accept-language": "ko-KR,ko;q=0.9", "cache-control": "no-cache" },
+      headers: { "user-agent": userAgent(env, opts.ua), accept, "accept-language": "ko-KR,ko;q=0.9", "cache-control": "no-cache", ...(opts.headers ?? {}) },
       redirect: "follow",
     });
     const buf = await res.arrayBuffer();
@@ -28,8 +32,8 @@ export async function fetchRaw(env: Env, url: string, accept = "*/*"): Promise<R
 }
 
 /** 본문 텍스트. 2xx가 아니면 예외. */
-export async function fetchText(env: Env, url: string, accept = "*/*"): Promise<string> {
-  const r = await fetchRaw(env, url, accept);
+export async function fetchText(env: Env, url: string, acceptOrOpts: string | FetchOpts = "*/*"): Promise<string> {
+  const r = await fetchRaw(env, url, acceptOrOpts);
   if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status} ${url} ${snippet(r.text)}`);
   return r.text;
 }

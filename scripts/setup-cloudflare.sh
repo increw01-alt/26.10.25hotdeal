@@ -47,11 +47,26 @@ if [ -n "${TG_TOKEN:-}" ]; then
   printf '%s' "$TG_CHAT" | (cd "$ROOT/worker" && npx wrangler secret put TELEGRAM_CHAT_ID)
 fi
 
-step "6/8 설정 검사 + Worker 배포"
+step "6/8 설정값 채우기 + Worker 배포"
+SITE_URL="https://$PAGES_PROJECT.pages.dev"
+SITE_CFG="$ROOT/shared/site.config.json"
+if grep -q REPLACE_ "$ROOT/worker/wrangler.toml" "$SITE_CFG"; then
+  read -r -p "사이트 이름 (Enter=핫딜 허브): " SITE_NAME; SITE_NAME="${SITE_NAME:-핫딜 허브}"
+  read -r -p "운영자 표기 이름 (Enter=$SITE_NAME 운영팀): " OP_NAME; OP_NAME="${OP_NAME:-$SITE_NAME 운영팀}"
+  read -r -p "문의 이메일: " OP_EMAIL; OP_EMAIL="${OP_EMAIL:-contact@example.com}"
+  for f in "$ROOT/worker/wrangler.toml" "$SITE_CFG"; do
+    sed -i.bak -e "s|https://REPLACE_WITH_SITE_URL/about/bot|$SITE_URL/about/|g" -e "s|https://REPLACE_WITH_SITE_URL|$SITE_URL|g" \
+      -e "s|REPLACE_SITE_NAME|$SITE_NAME|g" -e "s|REPLACE_OPERATOR_NAME|$OP_NAME|g" -e "s|REPLACE_CONTACT_EMAIL|$OP_EMAIL|g" "$f" && rm -f "$f.bak"
+  done
+  echo "✔ 설정값 기입: $SITE_NAME / $SITE_URL / $OP_EMAIL"
+fi
 node "$ROOT/scripts/check-config.mjs" --worker
 (cd "$ROOT/worker" && npm test >/dev/null && npm run typecheck >/dev/null && npx wrangler deploy | tee /tmp/worker-deploy.log)
 WORKER_URL="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/worker-deploy.log | head -1 || true)"
-echo "Worker URL: ${WORKER_URL:-'(커스텀 도메인 사용 중)'}"
+[ -z "$WORKER_URL" ] && { echo "✘ 배포 출력에서 Worker URL을 찾지 못했습니다"; exit 1; }
+echo "Worker URL: $WORKER_URL"
+sed -i.bak "s|https://REPLACE_WITH_WORKER_URL|$WORKER_URL|g" "$SITE_CFG" && rm -f "$SITE_CFG.bak"
+node "$ROOT/scripts/check-config.mjs" --site
 
 step "7/8 Pages 프로젝트 ($PAGES_PROJECT)"
 if ! $W pages project list 2>/dev/null | grep -q "$PAGES_PROJECT"; then
@@ -70,10 +85,12 @@ npx wrangler pages deploy dist --project-name="$PAGES_PROJECT" --branch=main --c
 
 cat <<MSG
 
-✔ 완료. 다음을 마무리하세요.
-  1) shared/site.config.json 의 siteUrl / apiBase 를 실제 주소로 바꾸고 커밋
-     - apiBase: ${WORKER_URL:-https://api.<도메인>}
-     - siteUrl: https://$PAGES_PROJECT.pages.dev  또는 커스텀 도메인
+✔ 완료.
+  사이트: $SITE_URL
+  API:    $WORKER_URL  (상태: $WORKER_URL/api/status.json)
+
+다음을 마무리하세요.
+  1) 자동으로 채운 설정값 커밋: git add -A && git commit -m "배포 설정값 입력" && git push
   2) GitHub 저장소 Settings → Secrets and variables → Actions
      - Secrets : CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, (선택) TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
      - Variables: CF_PAGES_PROJECT=$PAGES_PROJECT, API_BASE=${WORKER_URL:-https://api.<도메인>}

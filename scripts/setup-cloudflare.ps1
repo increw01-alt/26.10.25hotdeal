@@ -24,6 +24,13 @@ function Run([string]$Label, [scriptblock]$Cmd) {
   & $Cmd
   if ($LASTEXITCODE -ne 0) { Fail "$Label 실패 (exit $LASTEXITCODE). 위의 오류 메시지를 확인하세요." }
 }
+$SiteCfg = Join-Path $Root "shared\site.config.json"
+function ReplaceInFile($path, [hashtable]$map) {
+  $t = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
+  foreach ($k in $map.Keys) { $t = $t.Replace($k, [string]$map[$k]) }
+  [System.IO.File]::WriteAllText($path, $t, $Utf8NoBom)
+}
+function HasPlaceholder($path) { ([System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)) -match "REPLACE_" }
 function ReadToml { [System.IO.File]::ReadAllText($Toml, [System.Text.Encoding]::UTF8) }
 function WriteToml($text) { [System.IO.File]::WriteAllText($Toml, $text, $Utf8NoBom) }
 
@@ -77,7 +84,24 @@ if ($tg) {
   $chat | npx wrangler secret put TELEGRAM_CHAT_ID
 }
 
-Step "6/8 설정 검사 + Worker 배포"
+Step "6/8 설정값 채우기 + Worker 배포"
+$SiteUrl = "https://$PagesProject.pages.dev"
+if ((HasPlaceholder $Toml) -or (HasPlaceholder $SiteCfg)) {
+  Write-Host "사이트 기본 정보를 입력하세요. 나중에 shared/site.config.json, worker/wrangler.toml 에서 바꿀 수 있습니다."
+  $SiteName = Read-Host "사이트 이름 (Enter=핫딜 허브)"; if (-not $SiteName) { $SiteName = "핫딜 허브" }
+  $OpName   = Read-Host "운영자 표기 이름 (Enter=$SiteName 운영팀)"; if (-not $OpName) { $OpName = "$SiteName 운영팀" }
+  $OpEmail  = Read-Host "문의 이메일"; if (-not $OpEmail) { $OpEmail = "contact@example.com" }
+  $map = @{
+    "REPLACE_SITE_NAME" = $SiteName
+    "https://REPLACE_WITH_SITE_URL/about/bot" = "$SiteUrl/about/"
+    "https://REPLACE_WITH_SITE_URL" = $SiteUrl
+    "REPLACE_OPERATOR_NAME" = $OpName
+    "REPLACE_CONTACT_EMAIL" = $OpEmail
+  }
+  ReplaceInFile $Toml $map
+  ReplaceInFile $SiteCfg $map
+  Write-Host "✔ 설정값 기입: $SiteName / $SiteUrl / $OpEmail" -ForegroundColor Green
+}
 Run "설정 검사" { node "$Root\scripts\check-config.mjs" --worker }
 Run "테스트" { npm test | Out-Null }
 Run "타입검사" { npm run typecheck | Out-Null }
@@ -85,7 +109,9 @@ $deployOut = npx wrangler deploy 2>&1 | Tee-Object -Variable deployLines | Out-S
 Write-Host $deployOut
 if ($LASTEXITCODE -ne 0) { Fail "Worker 배포 실패" }
 $WorkerUrl = ([regex]::Match($deployOut, 'https://[a-z0-9.-]+\.workers\.dev')).Value
+if (-not $WorkerUrl) { Fail "배포 출력에서 Worker URL을 찾지 못했습니다. 위 출력의 https://...workers.dev 주소를 shared/site.config.json 의 apiBase 에 직접 넣어 주세요." }
 Write-Host "Worker URL: $WorkerUrl" -ForegroundColor Green
+ReplaceInFile $SiteCfg @{ "https://REPLACE_WITH_WORKER_URL" = $WorkerUrl }
 Pop-Location
 
 Step "7/8 Pages 프로젝트 ($PagesProject)"
@@ -96,7 +122,8 @@ Pop-Location
 
 Step "8/8 사이트 첫 배포 (API에 딜이 없으면 샘플 데이터)"
 Push-Location "$Root\site"
-if ($WorkerUrl) { $env:API_BASE = $WorkerUrl }
+$env:API_BASE = $WorkerUrl
+Run "설정 검사(site)" { node "$Root\scripts\check-config.mjs" --site }
 node scripts/build.mjs
 if ($LASTEXITCODE -ne 0) { Write-Host "API에 아직 딜이 없어 샘플 데이터로 빌드합니다." -ForegroundColor Yellow; $env:ALLOW_EMPTY = "1"; Run "빌드" { node scripts/build.mjs } }
 Run "CSS 빌드" { npm run build:css | Out-Null }
@@ -105,12 +132,18 @@ Pop-Location
 
 Write-Host @"
 
-✔ 완료. 다음을 마무리하세요.
-  1) shared/site.config.json 의 siteUrl / apiBase 를 실제 주소로 바꾸고 커밋
-     - apiBase: $WorkerUrl
-     - siteUrl: https://$PagesProject.pages.dev  또는 커스텀 도메인
+✔ 완료.
+  사이트:  $SiteUrl
+  API:     $WorkerUrl   (상태: $WorkerUrl/api/status.json)
+
+다음을 마무리하세요.
+  1) 방금 자동으로 채운 설정값을 저장소에 올립니다.
+       git add -A
+       git commit -m "배포 설정값 입력"
+       git push
   2) GitHub 저장소 Settings → Secrets and variables → Actions
      - Secrets : CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, (선택) TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
      - Variables: CF_PAGES_PROJECT=$PagesProject, API_BASE=$WorkerUrl
-  3) 커스텀 도메인: docs/DEPLOY.md 4단계
+  3) main 브랜치 생성: git checkout -b main ; git push -u origin main
+  4) 커스텀 도메인: docs/DEPLOY.md 4단계
 "@ -ForegroundColor Green

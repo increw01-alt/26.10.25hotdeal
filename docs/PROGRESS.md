@@ -33,7 +33,7 @@
 |---|---|
 | 사이트 | https://hotdeal-hub.pages.dev |
 | API | https://hotdeal-hub-worker.increw01.workers.dev (`/api/status.json`) |
-| 수집 | 클리앙: Worker Cron 1분 / 뽐뿌·뽐뿌쿠폰·루리웹: **GitHub Actions 중계**(5분 잡 안에서 60초 반복, PC 불필요) + 선택적 PC 중계 / 퀘이사존·에펨코리아: 차단으로 비활성 |
+| 수집 | 클리앙: Worker Cron 1분 / 뽐뿌·뽐뿌쿠폰·루리웹: **GitHub Actions 중계**(잡당 4.5분 60초 반복). GitHub `schedule`은 10-27 기준 한 번도 자동 실행되지 않음 → **Worker Cron이 중계가 2분 이상 비면 workflow_dispatch로 직접 실행(플랜 B, 동작 확인됨 09:45)**. PC 중계는 예비 / 퀘이사존·에펨코리아: 차단으로 비활성 |
 | 배포 | `main` push → Actions. 작업 브랜치 `claude/upbeat-noether-60p86o`는 CI만 |
 | 관리 | `/__admin/*` + `x-admin-token` (secret ADMIN_TOKEN, 값은 메모장) |
 
@@ -41,7 +41,8 @@
 
 - 문의 이메일이 임시값(`contact@example.com`) → 실제 주소로 교체 후 main 배포
 - ADMIN_TOKEN을 대화에 노출되지 않은 값으로 교체
-- (해결) 중계는 GitHub Actions가 담당. PC 중계·VPS는 선택 사항
+- (해결) 중계는 GitHub Actions + Worker 자동 깨우기. PC 중계·VPS는 선택 사항
+- GitHub schedule 이 활성화되는지 며칠 지켜보기(안 돼도 플랜 B로 충분). fine-grained PAT 만료(1년) 전 갱신
 - 클리앙 추천 수 셀렉터 확인(현재 0으로 들어옴), 파싱 실패 큐 점검
 - 커스텀 도메인, 검색엔진 사이트맵 제출, 2주 후 점수 가중치 보정
 

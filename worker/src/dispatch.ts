@@ -1,7 +1,7 @@
 import type { Env } from "./types";
 import { relaySources } from "./config";
 
-const RELAY_STALE_MIN = 6;      // 중계가 이 시간 이상 비면 GitHub 워크플로를 깨운다
+const RELAY_STALE_MIN = 2;      // 중계가 이 시간 이상 비면 GitHub 워크플로를 깨운다 (잡 4.5분 + 공백 ~2분 → 거의 연속)
 const DISPATCH_COOLDOWN_MIN = 5; // 한 번 깨운 뒤 최소 대기(잡 자체가 ~4.5분 돌기 때문)
 const DISPATCH_KEY = "__dispatch";
 

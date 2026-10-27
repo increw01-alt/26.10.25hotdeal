@@ -1,0 +1,30 @@
+name: Relay Collect
+# 예비 중계 수집: PC 중계가 꺼져 있을 때 GitHub 서버에서 뽐뿌·루리웹을 가져와 Worker로 보낸다.
+# Worker는 최근 10분 내 중계가 들어온 소스를 Cron에서 건너뛰므로 PC 중계와 동시에 돌아도 충돌 없음(중복은 dedupe).
+# 필요한 secret: RELAY_TOKEN (= Worker의 ADMIN_TOKEN), variable: API_BASE
+# 먼저 수동 실행(workflow_dispatch)으로 GitHub IP가 차단되지 않는지 확인한 뒤 schedule을 유지한다.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+concurrency: { group: relay, cancel-in-progress: false }
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults: { run: { working-directory: worker } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: worker/package-lock.json }
+      - run: npm ci
+      - run: npm run build:relay
+      - name: 중계 실행 (1회)
+        env:
+          RELAY_API: ${{ vars.API_BASE }}
+          RELAY_TOKEN: ${{ secrets.RELAY_TOKEN }}
+          RELAY_SOURCES: ppomppu,ruliweb
+          RELAY_UA: "Mozilla/5.0 (compatible; HotdealHubRelay/0.1 GitHubActions; +https://hotdeal-hub.pages.dev/about/)"
+        run: |
+          [ -z "$RELAY_TOKEN" ] && { echo "::error::RELAY_TOKEN secret 이 없습니다"; exit 1; }
+          node dist/relay.mjs

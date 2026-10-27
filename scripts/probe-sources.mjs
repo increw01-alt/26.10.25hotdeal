@@ -14,6 +14,11 @@ const UAS = {
 const CANDIDATES = [
   ["ppomppu", "https://www.ppomppu.co.kr/rss.php?id=ppomppu"],
   ["ppomppu", "https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu"],
+  ["ppomppu", "https://www.ppomppu.co.kr/rss.php?id=coupon"],
+  ["ppomppu", "https://www.ppomppu.co.kr/rss.php?id=money"],
+  ["ppomppu", "https://www.ppomppu.co.kr/rss.php?id=ppomppu4"],
+  ["ppomppu", "https://www.ppomppu.co.kr/rss.php?id=ppomppu8"],
+  ["ppomppu", "https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu&category=5"],
   ["clien", "https://www.clien.net/service/rss/board/jirum"],
   ["clien", "https://www.clien.net/service/board/rss/jirum"],
   ["clien", "https://www.clien.net/service/board/jirum"],

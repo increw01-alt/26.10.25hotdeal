@@ -16,9 +16,15 @@ step "1/8 의존성 설치"
 (cd "$ROOT/site" && npm ci --no-audit --no-fund)
 W="npx --prefix $ROOT/worker wrangler"
 
-step "2/8 Cloudflare 로그인 확인"
-if ! $W whoami >/dev/null 2>&1; then $W login; fi
-$W whoami | head -5
+step "2/8 Cloudflare 인증 (API 토큰)"
+if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+  read -r -s -p "CLOUDFLARE_API_TOKEN (대시보드에서 만든 토큰 붙여넣기, 화면에 안 보임): " CLOUDFLARE_API_TOKEN; echo
+  export CLOUDFLARE_API_TOKEN
+fi
+if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+  read -r -p "CLOUDFLARE_ACCOUNT_ID (32자리): " CLOUDFLARE_ACCOUNT_ID; export CLOUDFLARE_ACCOUNT_ID
+fi
+$W whoami | head -8 || { echo "✘ 토큰 인증 실패"; exit 1; }
 
 step "3/8 D1 데이터베이스 ($DB_NAME)"
 DB_ID="$($W d1 list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s);const r=a.find(x=>x.name===process.argv[1]);console.log(r?r.uuid:"")}catch{console.log("")}})' "$DB_NAME")"

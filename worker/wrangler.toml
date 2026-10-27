@@ -37,5 +37,10 @@ USER_AGENT = "Mozilla/5.0 (compatible; HotdealHubBot/0.1; +https://hotdeal-hub.p
 # 에펨코리아 활성화 여부 (D-15)
 ENABLE_FMKOREA = "false"
 
+# 플랜 B(GitHub 스케줄 지연 대비): secret GITHUB_DISPATCH_TOKEN 이 있을 때만 동작
+GITHUB_REPO = "increw01-alt/26.10.25hotdeal"
+RELAY_WORKFLOW = "relay.yml"
+RELAY_REF = "main"
+
 [observability]
 enabled = true

@@ -143,6 +143,19 @@ Register-ScheduledTask -TaskName "HotdealRelay" -Action $act -Trigger $trg -Sett
 
 PC를 항상 켜 둘 수 없으면 국내 저가 VPS(월 5천원대)에 Node를 설치하고 `RELAY_TOKEN=… node dist/relay.mjs --api … --loop 60`을 `systemd` 또는 `pm2`로 돌린다. 중계는 표준 Node 20+만 있으면 어디서든 실행된다.
 
+### 7-1. 플랜 B: GitHub 스케줄이 늦거나 멈출 때
+
+GitHub의 `schedule` 트리거는 지연되거나(혼잡 시 수십 분), 저장소가 60일간 활동이 없으면 자동 비활성화된다. 이에 대비해 Worker Cron(1분)이 **중계가 6분 이상 비면 `relay.yml`을 `workflow_dispatch`로 직접 깨운다.** secret이 없으면 동작하지 않는다.
+
+1. GitHub → Settings(프로필) → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token
+   - Repository access: Only select repositories → `26.10.25hotdeal`
+   - Permissions → Repository permissions → **Actions: Read and write** (그 외 없음)
+   - Expiration: 1년(만료 전 갱신 필요)
+2. `worker` 폴더에서 `npx wrangler secret put GITHUB_DISPATCH_TOKEN` → 토큰 입력
+3. 확인: `curl.exe -s -H "x-admin-token: <ADMIN_TOKEN>" "<API>/__admin/dispatch"` → `{"dispatched":true,…}` 또는 `relay fresh`(이미 최신이라 안 깨움)
+
+`wrangler.toml`의 `GITHUB_REPO`, `RELAY_WORKFLOW`, `RELAY_REF`가 대상이다.
+
 ## 8. 운영 명령 모음
 
 ```bash

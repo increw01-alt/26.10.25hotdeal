@@ -16,6 +16,10 @@ export interface Env {
   DISABLED_SOURCES?: string;
   DEV_INGEST?: string;
   ADMIN_TOKEN?: string; // secret: 관리용 엔드포인트(/__admin/*)
+  GITHUB_DISPATCH_TOKEN?: string; // secret: 플랜 B — relay.yml workflow_dispatch 용 PAT
+  GITHUB_REPO?: string;    // var: owner/repo
+  RELAY_WORKFLOW?: string; // var: relay.yml
+  RELAY_REF?: string;      // var: main
   // secrets (wrangler secret put ...)
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;

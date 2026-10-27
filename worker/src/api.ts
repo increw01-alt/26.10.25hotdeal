@@ -225,6 +225,11 @@ async function handleAdmin(req: Request, path: string, url: URL, env: Env): Prom
     ]);
     return nocache({ deleted: id, changes: r.map((x) => x.meta.changes) });
   }
+  if (path === "/__admin/dispatch") {
+    // 플랜 B 수동 점검: 조건과 무관하게 지금 깨울지 판단 결과만 돌려준다(조건 충족 시 실제 dispatch)
+    const { maybeDispatchRelay } = await import("./dispatch");
+    return nocache(await maybeDispatchRelay(env));
+  }
   if (path === "/__admin/sources") {
     const relay = (await env.DB.prepare("SELECT * FROM relay_state").all().catch(() => ({ results: [] }))).results;
     return nocache({ enabled: enabledSources(env).map((x) => x.slug), cron: cronSources(env).map((x) => x.slug), relay_only: relaySources().map((x) => x.slug), relay, state: (await env.DB.prepare("SELECT * FROM source_state").all()).results });

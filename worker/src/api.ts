@@ -31,7 +31,10 @@ export async function handleApi(req: Request, env: Env): Promise<Response> {
   }
   // 관리용 진단 엔드포인트. secret ADMIN_TOKEN 과 x-admin-token 헤더가 일치할 때만 동작.
   if (path.startsWith("/__admin/")) {
-    if (!env.ADMIN_TOKEN || req.headers.get("x-admin-token") !== env.ADMIN_TOKEN) return json({ error: "forbidden" }, 403);
+    // 토큰 비교: 파이프 입력(`"pw" | wrangler secret put`)으로 끝에 줄바꿈이 붙는 경우를 감안해 양쪽 trim
+    const expected = (env.ADMIN_TOKEN ?? "").trim();
+    const given = (req.headers.get("x-admin-token") ?? url.searchParams.get("token") ?? "").trim();
+    if (!expected || given !== expected) return json({ error: "forbidden", hint: expected ? "x-admin-token header mismatch" : "ADMIN_TOKEN secret not set" }, 403);
     try { return await handleAdmin(path, url, env); } catch (e) { return json({ error: (e as Error).message }, 500); }
   }
   if (req.method !== "GET") return json({ error: "method not allowed" }, 405);

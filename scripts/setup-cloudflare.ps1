@@ -1,4 +1,4 @@
-<#
+﻿<#
 Cloudflare 초기 설정 (Windows PowerShell 5.1 / PowerShell 7). 한 번만 실행하면 되고, 다시 실행해도 안전하다.
 사용: powershell -ExecutionPolicy Bypass -File scripts\setup-cloudflare.ps1 [-PagesProject hotdeal-hub]
 인증: 실행 중 API 토큰과 Account ID를 물어본다(브라우저 로그인 불필요).

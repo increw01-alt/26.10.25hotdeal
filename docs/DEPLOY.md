@@ -107,7 +107,11 @@ curl.exe -s -H "x-admin-token: $T" "$A/__admin/run"                     # 수집
 curl.exe -s -H "x-admin-token: $T" "$A/__admin/fetch?source=ppomppu"    # 한 소스만 가져와 파싱 결과 확인
 curl.exe -s -H "x-admin-token: $T" "$A/__admin/probe?url=https://www.ppomppu.co.kr/rss.php?id=ppomppu"  # Worker 관점의 원본 응답
 curl.exe -s -H "x-admin-token: $T" "$A/__admin/queue"                   # 파싱 실패 큐
+curl.exe -s -H "x-admin-token: $T" "$A/__admin/reset"                   # 서킷 브레이커 일시 중지 해제 (?source=슬러그 로 하나만)
+curl.exe -s -H "x-admin-token: $T" "$A/__admin/probe?url=…&ua=feed&h=Referer:https://www.ppomppu.co.kr/"  # UA 프리셋·추가 헤더로 시험
 ```
+
+봇 UA는 두 가지(`bot`, `feed`) 모두 봇임을 밝히고 연락처 URL을 포함한다. 브라우저로 위장하는 UA는 출처 정책상 쓰지 않는다.
 
 ## 7. 운영 명령 모음
 

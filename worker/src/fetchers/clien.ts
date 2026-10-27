@@ -40,7 +40,7 @@ export function parseClienList(html: string, source: string): RawPost[] {
 }
 
 export async function fetchClien(env: Env, src: SourceDef): Promise<RawPost[]> {
-  const html = await fetchText(env, src.url, "text/html");
+  const html = await fetchText(env, src.url, { accept: "text/html", ua: src.ua, headers: src.headers });
   const items = parseClienList(html, src.slug);
   if (items.length === 0) throw new Error(`empty list ${src.slug} (markup changed?) [${html.replace(/\s+/g, " ").slice(0, 160)}]`);
   return items;

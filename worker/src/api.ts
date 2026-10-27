@@ -162,8 +162,11 @@ async function handleAdmin(path: string, url: URL, env: Env): Promise<Response> 
   if (path === "/__admin/probe") {
     const target = url.searchParams.get("url") ?? "";
     if (!/^https?:\/\//.test(target)) return nocache({ error: "url 파라미터 필요" }, 400);
-    const r = await fetchRaw(env, target, url.searchParams.get("accept") ?? "application/rss+xml, application/xml, text/html, */*");
-    return nocache({ url: target, status: r.status, contentType: r.contentType, bytes: r.bytes, ms: r.ms, finalUrl: r.finalUrl,
+    // 옵션: ua=bot|feed, h=Header:Value (여러 개 가능, 예: h=Referer:https://www.ppomppu.co.kr/)
+    const headers: Record<string, string> = {};
+    for (const h of url.searchParams.getAll("h")) { const i = h.indexOf(":"); if (i > 0) headers[h.slice(0, i).trim()] = h.slice(i + 1).trim(); }
+    const r = await fetchRaw(env, target, { accept: url.searchParams.get("accept") ?? "application/rss+xml, application/xml, text/html, */*", ua: url.searchParams.get("ua") ?? undefined, headers });
+    return nocache({ url: target, ua: url.searchParams.get("ua") ?? "bot", headers, status: r.status, contentType: r.contentType, bytes: r.bytes, ms: r.ms, finalUrl: r.finalUrl,
       items: (r.text.match(/<item\b/gi) ?? []).length, kind: /<rss|<feed|<rdf/i.test(r.text.slice(0, 500)) ? "feed" : /<html/i.test(r.text.slice(0, 500)) ? "html" : "other",
       botwall: /cf-browser-verification|challenge-platform|captcha|Just a moment|접근이 차단|비정상적인 접근/i.test(r.text),
       head: r.text.slice(0, Number(url.searchParams.get("n") ?? 1500)) });
@@ -183,11 +186,19 @@ async function handleAdmin(path: string, url: URL, env: Env): Promise<Response> 
     const s = await runCollection(env);
     return nocache({ ...s, ms: Date.now() - started, enabled: enabledSources(env).map((x) => x.slug) });
   }
+  if (path === "/__admin/reset") {
+    // 서킷 브레이커 해제: ?source=ppomppu 또는 전체
+    const slug = url.searchParams.get("source");
+    const r = slug
+      ? await env.DB.prepare("UPDATE source_state SET consecutive_fail = 0, paused_until = NULL WHERE source = ?").bind(slug).run()
+      : await env.DB.prepare("UPDATE source_state SET consecutive_fail = 0, paused_until = NULL").run();
+    return nocache({ reset: slug ?? "all", changed: r.meta.changes });
+  }
   if (path === "/__admin/sources") {
     return nocache({ enabled: enabledSources(env).map((x) => x.slug), state: (await env.DB.prepare("SELECT * FROM source_state").all()).results });
   }
   if (path === "/__admin/queue") {
     return nocache({ queue: (await env.DB.prepare("SELECT source, post_id, title, reason, queued_at FROM parse_queue WHERE resolved = 0 ORDER BY id DESC LIMIT 50").all()).results });
   }
-  return nocache({ error: "not found", routes: ["/__admin/probe?url=", "/__admin/fetch?source=", "/__admin/run", "/__admin/sources", "/__admin/queue"] }, 404);
+  return nocache({ error: "not found", routes: ["/__admin/probe?url=&ua=feed&h=Referer:https://…", "/__admin/fetch?source=", "/__admin/run", "/__admin/reset?source=", "/__admin/sources", "/__admin/queue"] }, 404);
 }

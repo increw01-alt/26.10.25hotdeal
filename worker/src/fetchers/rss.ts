@@ -47,7 +47,7 @@ export function extractPostId(link: string, guid: string): string {
 }
 
 export async function fetchRss(env: Env, src: SourceDef): Promise<RawPost[]> {
-  const r = await fetchRaw(env, src.url, "application/rss+xml, application/xml, text/xml, */*");
+  const r = await fetchRaw(env, src.url, { accept: "application/rss+xml, application/xml, text/xml, */*", ua: src.ua, headers: src.headers });
   if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status} ${src.url} ${snippet(r.text)}`);
   const items = parseFeed(r.text, src.slug);
   if (items.length === 0) throw new Error(`empty feed ${src.slug} status=${r.status} ct=${r.contentType.split(";")[0]} bytes=${r.bytes} ${snippet(r.text)}`);

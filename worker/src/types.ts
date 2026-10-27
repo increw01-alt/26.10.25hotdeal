@@ -58,6 +58,8 @@ export interface SourceDef {
   board_url: string;
   enabled?: boolean;
   notes?: string;
+  ua?: "bot" | "feed";
+  headers?: Record<string, string>;
 }
 
 export interface RatesMap {

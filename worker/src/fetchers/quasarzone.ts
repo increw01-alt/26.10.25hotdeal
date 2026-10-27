@@ -26,7 +26,7 @@ export function parseQuasarzoneList(html: string, source: string): RawPost[] {
 }
 
 export async function fetchQuasarzone(env: Env, src: SourceDef): Promise<RawPost[]> {
-  const html = await fetchText(env, src.url, "text/html");
+  const html = await fetchText(env, src.url, { accept: "text/html", ua: src.ua, headers: src.headers });
   const items = parseQuasarzoneList(html, src.slug);
   if (items.length === 0) throw new Error(`empty list ${src.slug} (markup changed?)`);
   return items;

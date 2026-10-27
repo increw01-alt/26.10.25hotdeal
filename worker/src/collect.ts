@@ -24,7 +24,9 @@ export async function runCollection(env: Env): Promise<RunSummary> {
   const ctx = await buildIngestCtx(env, now);
   const { medians } = ctx;
 
+  const relayed = await recentlyRelayed(env);
   for (const src of enabledSources(env)) {
+    if (relayed.has(src.slug)) continue; // 중계 수집기가 담당 중
     if (await isPaused(env, src.slug)) continue;
     let posts: RawPost[];
     try {
@@ -194,4 +196,30 @@ async function refreshScores(env: Env, medians: Record<string, { votes: number; 
     return env.DB.prepare("UPDATE deals SET score=?, votes_total=?, comments_total=? WHERE id=?").bind(score, r.votes, r.comments, r.id);
   });
   for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+}
+
+const RELAY_FRESH_MIN = 10;
+
+/** 최근 RELAY_FRESH_MIN 분 안에 중계가 들어온 소스 */
+export async function recentlyRelayed(env: Env): Promise<Set<string>> {
+  try {
+    const since = new Date(Date.now() - RELAY_FRESH_MIN * 60_000).toISOString();
+    const rows = (await env.DB.prepare("SELECT source FROM relay_state WHERE last_at >= ?").bind(since).all<{ source: string }>()).results;
+    return new Set(rows.map((r) => r.source));
+  } catch { return new Set(); } // 테이블이 아직 없으면 무시
+}
+
+/** 중계 수집 결과를 source_state·run_log에 반영 (상태 페이지·가드가 중계도 인식하도록) */
+export async function recordRelayRun(env: Env, r: { counts: Record<string, number>; errors: Record<string, string>; parsed: number; newDeals: number; received: number; host?: string }): Promise<{ activeDeals: number }> {
+  const now = new Date().toISOString();
+  for (const slug of new Set([...Object.keys(r.counts), ...Object.keys(r.errors)])) {
+    await env.DB.prepare("INSERT INTO relay_state (source, last_at, host) VALUES (?,?,?) ON CONFLICT(source) DO UPDATE SET last_at = excluded.last_at, host = excluded.host").bind(slug, now, r.host ?? null).run();
+  }
+  for (const [slug, n] of Object.entries(r.counts)) await recordSourceOk(env, slug, n);
+  for (const [slug, msg] of Object.entries(r.errors)) await recordSourceFail(env, slug, `relay: ${msg}`);
+  const activeDeals = (await env.DB.prepare("SELECT COUNT(*) AS c FROM deals WHERE status != 'ended'").first<{ c: number }>())?.c ?? 0;
+  await env.DB.prepare(
+    "INSERT INTO run_log (ran_at, active_deals, new_deals, fetched, parsed, guard_tripped, note) VALUES (?,?,?,?,?,0,?)",
+  ).bind(new Date().toISOString(), activeDeals, r.newDeals, r.received, r.parsed, `relay ${Object.keys(r.counts).join(",")}${Object.keys(r.errors).length ? " errors: " + Object.entries(r.errors).map(([k, v]) => `${k}: ${v}`).join(" | ").slice(0, 600) : ""}`).run();
+  return { activeDeals };
 }

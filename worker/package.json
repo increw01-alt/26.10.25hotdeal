@@ -12,12 +12,15 @@
     "db:migrate:remote": "wrangler d1 execute hotdeal-hub --remote --file=./schema.sql",
     "cron:local": "curl -s \"http://localhost:8787/__scheduled?cron=*+*+*+*+*\"",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:relay": "esbuild src/relay.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/relay.mjs",
+    "relay": "node dist/relay.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261019.1",
     "typescript": "~5.9.3",
     "vitest": "~3.2.7",
-    "wrangler": "~4.152.0"
+    "wrangler": "~4.152.0",
+    "esbuild": "^0.25.0"
   }
 }

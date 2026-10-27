@@ -13,8 +13,9 @@ export interface Env {
   FEED_CACHE_SECONDS: string;
   FETCH_TIMEOUT_MS: string;
   USER_AGENT: string;
-  ENABLE_FMKOREA: string;
+  DISABLED_SOURCES?: string;
   DEV_INGEST?: string;
+  ADMIN_TOKEN?: string; // secret: 관리용 엔드포인트(/__admin/*)
   // secrets (wrangler secret put ...)
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;

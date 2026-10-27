@@ -1,5 +1,5 @@
 {
-  "$comment": "커뮤니티 핫딜 소스 정의. checked_at은 RSS 실존·robots 확인일. 이 환경에서는 네트워크 차단으로 미확인(null) 상태이며, 허용 후 실제 호출로 갱신할 것.",
+  "$comment": "커뮤니티 핫딜 소스 정의. 2026-10-27 PC 조사(scripts/probe-sources.mjs) 결과 반영: 뽐뿌·루리웹 RSS 정상, 클리앙 RSS 없음(HTML), 퀘이사존 봇 차단, 에펨코리아 HTML 응답.",
   "sources": [
     {
       "slug": "ppomppu",
@@ -8,22 +8,22 @@
       "type": "rss",
       "url": "https://www.ppomppu.co.kr/rss.php?id=ppomppu",
       "board_url": "https://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu",
-      "robots_checked_at": null,
-      "rss_verified_at": null,
+      "robots_checked_at": "2026-10-27",
+      "rss_verified_at": "2026-10-27",
       "title_pattern_hint": "[쇼핑몰] 상품명 (가격/배송비)",
-      "notes": "제목 앞 대괄호가 판매처. RSS에 추천·댓글 수 없음(목록 페이지 보강 필요)."
+      "notes": "RSS 15건/EUC-KR. 제목 앞 대괄호가 판매처. 추천·댓글 수는 RSS에 없음."
     },
     {
       "slug": "clien",
       "name": "클리앙",
       "tier": 1,
-      "type": "rss",
-      "url": "https://www.clien.net/service/rss/board/jirum",
+      "type": "html",
+      "url": "https://www.clien.net/service/board/jirum",
       "board_url": "https://www.clien.net/service/board/jirum",
-      "robots_checked_at": null,
+      "robots_checked_at": "2026-10-27",
       "rss_verified_at": null,
       "title_pattern_hint": "상품명 (쇼핑몰/가격/배송)",
-      "notes": "알뜰구매 게시판. 추천 수 스케일 작음(중앙값 정규화 필수)."
+      "notes": "RSS 경로(/service/rss/board/jirum, /service/board/rss/jirum) 모두 404 → 게시판 HTML 파싱. 추천 수 스케일 작음(중앙값 정규화 필수)."
     },
     {
       "slug": "ruliweb",
@@ -32,22 +32,23 @@
       "type": "rss",
       "url": "https://bbs.ruliweb.com/market/board/1020/rss",
       "board_url": "https://bbs.ruliweb.com/market/board/1020",
-      "robots_checked_at": null,
-      "rss_verified_at": null,
+      "robots_checked_at": "2026-10-27",
+      "rss_verified_at": "2026-10-27",
       "title_pattern_hint": "[쇼핑몰] 상품명 (가격) (배송비)",
-      "notes": "기획서 v1에는 HTML로 기재되어 있으나 게시판 RSS 존재. 경로는 허용 후 확인."
+      "notes": "RSS 28건. PC에서는 0.1초 응답, Worker에서는 시간 초과 발생 → 타임아웃 20초로 상향 후 재확인."
     },
     {
       "slug": "quasarzone",
       "name": "퀘이사존",
-      "tier": 1,
+      "tier": 2,
       "type": "html",
       "url": "https://quasarzone.com/bbs/qb_saleinfo",
       "board_url": "https://quasarzone.com/bbs/qb_saleinfo",
-      "robots_checked_at": null,
+      "robots_checked_at": "2026-10-27",
       "rss_verified_at": null,
       "title_pattern_hint": "[쇼핑몰] 상품명 (가격/배송비)",
-      "notes": "RSS 없음. 목록 HTML 파싱. 카테고리 라벨(상품권/기프티콘)이 별도 셀에 있음."
+      "notes": "모든 UA에서 403 봇 차단(Cloudflare 보호). 비활성화. 공식 RSS/API 제공 시 재검토.",
+      "enabled": false
     },
     {
       "slug": "fmkorea",
@@ -56,18 +57,21 @@
       "type": "html",
       "url": "https://www.fmkorea.com/hotdeal",
       "board_url": "https://www.fmkorea.com/hotdeal",
-      "robots_checked_at": null,
+      "robots_checked_at": "2026-10-27",
       "rss_verified_at": null,
       "title_pattern_hint": "[쇼핑몰] 상품명 (가격/배송비)",
-      "notes": "봇 차단 강함. 차단 여부 확인 후 활성화. 기본 enabled=false.",
-      "enabled": false
+      "notes": "RSS 없음(act=rss도 HTML). 게시판 HTML 파싱. Worker IP 차단 가능성 있어 2차 소스, 서킷 브레이커로 자동 중지.",
+      "enabled": true
     }
   ],
   "defaults": {
     "enabled": true,
-    "fetch_timeout_ms": 10000,
-    "user_agent": "HotdealHubBot/0.1 (+https://REPLACE_WITH_SITE_URL/about/bot)",
+    "fetch_timeout_ms": 20000,
+    "user_agent": "Mozilla/5.0 (compatible; HotdealHubBot/0.1; +https://REPLACE_WITH_SITE_URL/about/)",
     "max_items_per_fetch": 60,
-    "circuit_breaker": { "fail_threshold": 5, "cooldown_minutes": 60 }
+    "circuit_breaker": {
+      "fail_threshold": 5,
+      "cooldown_minutes": 60
+    }
   }
 }

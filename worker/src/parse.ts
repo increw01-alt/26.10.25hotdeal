@@ -80,6 +80,10 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
   if (!brandHit) return null;
   const brand = brandHit.b;
 
+  // 적립·캐시백·페이백 이벤트(예: "네이버페이 9,900원 이상 결제시 50% 적립")는 상품권 구매 딜이 아니다.
+  // 상품권·충전·구매 맥락이 함께 있으면 딜로 본다(예: "컬쳐랜드 5만원 충전 시 5% 적립").
+  if (/적립|캐시백|페이백|추첨|응모/.test(title) && !/상품권|기프트|충전|권\s*구매|교환권|관람권/.test(title)) return null;
+
   // 판매처: 제목 맨 앞 대괄호 우선, 없으면 전체에서 탐색
   let merchant: string | null = null;
   const bracket = title.match(/^\s*[\[(]([^\])]{1,20})[\])]/);
@@ -87,7 +91,10 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
     const bn = norm(bracket[1]);
     merchant = merchantIndex.find((x) => bn.includes(x.alias))?.m.slug ?? null;
   }
-  if (!merchant) merchant = merchantIndex.find((x) => n.includes(x.alias))?.m.slug ?? null;
+  if (!merchant) {
+    const nWithoutBrand = n.split(brandHit.alias).join(" ");
+    merchant = merchantIndex.find((x) => nWithoutBrand.includes(x.alias))?.m.slug ?? null;
+  }
 
   const { face, sale } = extractPrices(title, brand.face_values);
   const pct = extractPercent(title);

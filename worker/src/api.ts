@@ -209,6 +209,17 @@ async function handleAdmin(req: Request, path: string, url: URL, env: Env): Prom
       : await env.DB.prepare("UPDATE source_state SET consecutive_fail = 0, paused_until = NULL").run();
     return nocache({ reset: slug ?? "all", changed: r.meta.changes });
   }
+  if (path === "/__admin/delete") {
+    // 오탐 딜 삭제: ?id=딜ID (deal_posts·deal_prices는 ON DELETE CASCADE). 파서 수정 후 정리용.
+    const id = url.searchParams.get("id") ?? "";
+    if (!/^[a-f0-9]{16}$/.test(id)) return nocache({ error: "id 파라미터(16자리) 필요" }, 400);
+    const r = await env.DB.batch([
+      env.DB.prepare("DELETE FROM deal_prices WHERE deal_id = ?").bind(id),
+      env.DB.prepare("DELETE FROM deal_posts WHERE deal_id = ?").bind(id),
+      env.DB.prepare("DELETE FROM deals WHERE id = ?").bind(id),
+    ]);
+    return nocache({ deleted: id, changes: r.map((x) => x.meta.changes) });
+  }
   if (path === "/__admin/sources") {
     const relay = (await env.DB.prepare("SELECT * FROM relay_state").all().catch(() => ({ results: [] }))).results;
     return nocache({ enabled: enabledSources(env).map((x) => x.slug), relay, state: (await env.DB.prepare("SELECT * FROM source_state").all()).results });
@@ -216,5 +227,5 @@ async function handleAdmin(req: Request, path: string, url: URL, env: Env): Prom
   if (path === "/__admin/queue") {
     return nocache({ queue: (await env.DB.prepare("SELECT source, post_id, title, reason, queued_at FROM parse_queue WHERE resolved = 0 ORDER BY id DESC LIMIT 50").all()).results });
   }
-  return nocache({ error: "not found", routes: ["/__admin/probe?url=&ua=feed&h=Referer:https://…", "/__admin/fetch?source=", "/__admin/run", "/__admin/reset?source=", "/__admin/sources", "/__admin/queue"] }, 404);
+  return nocache({ error: "not found", routes: ["/__admin/probe?url=&ua=feed&h=Referer:https://…", "/__admin/fetch?source=", "/__admin/run", "/__admin/reset?source=", "/__admin/delete?id=", "/__admin/sources", "/__admin/queue"] }, 404);
 }

@@ -92,3 +92,27 @@ describe("parseTitle confidence 규칙", () => {
     expect(d!.confidence).toBeGreaterThanOrEqual(0.5);
   });
 });
+
+
+describe("parseTitle 실데이터 오탐 (2026-10-27)", () => {
+  it("매장 적립 이벤트는 딜이 아니다", () => {
+    expect(parseTitle(post("[설빙] 네이버페이 9,900원 이상 결제시 50% 적립 (10/28~11/1)"))).toBeNull();
+    expect(parseTitle(post("카카오페이 결제 시 1,000원 캐시백"))).toBeNull();
+  });
+  it("상품권 충전 적립은 딜로 본다", () => {
+    const d = parseTitle(post("[컬쳐랜드] 문화상품권 5만원 충전 시 5% 적립"));
+    expect(d).not.toBeNull();
+    expect(d!.brand).toBe("cultureland");
+  });
+  it("브랜드명 안의 글자로 판매처를 잡지 않는다", () => {
+    const d = parseTitle(post("네이버페이 포인트 5만원권 47,500원 (11번가)"));
+    expect(d!.brand).toBe("naverpay");
+    expect(d!.merchant).toBe("11st");
+    const d2 = parseTitle(post("네이버페이 포인트 5만원권 47,500원"));
+    expect(d2!.merchant).toBeNull();
+  });
+  it("루리웹 실제 제목", () => {
+    const d = parseTitle(post("[네이버]컬쳐랜드상품권(모바일문화상품권) 5만원 (46,500원/무료)"));
+    expect(d).toMatchObject({ brand: "cultureland", merchant: "naver", faceValue: 50000, salePrice: 46500, discountRate: 7 });
+  });
+});

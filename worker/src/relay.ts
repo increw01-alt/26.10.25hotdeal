@@ -7,7 +7,7 @@
  * 실행:  node dist/relay.mjs --api https://…workers.dev --token 비밀번호 [--sources ppomppu,ruliweb] [--loop 60]
  *        환경변수 RELAY_API / RELAY_TOKEN / RELAY_SOURCES 로도 지정 가능
  */
-import { SOURCES } from "./config";
+import { SOURCES, relaySources } from "./config";
 import { fetchSource } from "./fetchers";
 import type { Env, RawPost, SourceDef } from "./types";
 
@@ -17,7 +17,7 @@ function parseArgs(argv: string[]): Args {
   const get = (k: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : undefined; };
   const api = (get("api") ?? process.env.RELAY_API ?? "").replace(/\/$/, "");
   const token = get("token") ?? process.env.RELAY_TOKEN ?? "";
-  const sources = (get("sources") ?? process.env.RELAY_SOURCES ?? "ppomppu,ppomppu_coupon,ruliweb").split(",").map((x: string) => x.trim()).filter(Boolean);
+  const sources = (get("sources") ?? process.env.RELAY_SOURCES ?? relaySources().map((s) => s.slug).join(",")).split(",").map((x: string) => x.trim()).filter(Boolean);
   const loop = Number(get("loop") ?? process.env.RELAY_LOOP ?? 0) || 0;
   const ua = process.env.RELAY_UA ?? "Mozilla/5.0 (compatible; HotdealHubRelay/0.1; +https://hotdeal-hub.pages.dev/about/)";
   if (!api || !token) { console.error("사용법: node dist/relay.mjs --api https://<worker> --token <ADMIN_TOKEN> [--sources ppomppu,ruliweb] [--loop 60]"); process.exit(2); }

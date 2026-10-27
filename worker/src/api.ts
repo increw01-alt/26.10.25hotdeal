@@ -4,7 +4,7 @@ import { isoWeekKST } from "./dedupe";
 import { buildIngestCtx, finalizeRun, ingestPosts, runCollection, recordRelayRun } from "./collect";
 import { fetchRaw } from "./fetchers/http";
 import { fetchSource } from "./fetchers";
-import { enabledSources, SOURCES } from "./config";
+import { enabledSources, cronSources, relaySources, SOURCES } from "./config";
 import type { RawPost } from "./types";
 
 /**
@@ -124,7 +124,12 @@ async function dealDetail(env: Env, id: string) {
 async function statusPayload(env: Env) {
   const last = await env.DB.prepare("SELECT ran_at, active_deals, guard_tripped FROM run_log ORDER BY id DESC LIMIT 1").first<{ ran_at: string; active_deals: number; guard_tripped: number }>();
   const sources = (await env.DB.prepare("SELECT source, consecutive_fail, paused_until, last_ok_at, last_item_count FROM source_state").all()).results;
-  const relay = (await env.DB.prepare("SELECT source, last_at FROM relay_state").all().catch(() => ({ results: [] }))).results;
+  const relayRows = (await env.DB.prepare("SELECT source, last_at FROM relay_state").all<{ source: string; last_at: string }>().catch(() => ({ results: [] as { source: string; last_at: string }[] }))).results;
+  const relay = relaySources().map((s) => {
+    const row = relayRows.find((r) => r.source === s.slug);
+    const ageMin = row ? (Date.now() - new Date(row.last_at).getTime()) / 60000 : null;
+    return { source: s.slug, last_at: row?.last_at ?? null, stale: ageMin === null || ageMin > 10 };
+  });
   const staleHours = num(env, "GUARD_STALE_HOURS", 2);
   const ageHours = last ? (Date.now() - new Date(last.ran_at).getTime()) / 3600000 : null;
   return {
@@ -199,7 +204,7 @@ async function handleAdmin(req: Request, path: string, url: URL, env: Env): Prom
   if (path === "/__admin/run") {
     const started = Date.now();
     const s = await runCollection(env);
-    return nocache({ ...s, ms: Date.now() - started, enabled: enabledSources(env).map((x) => x.slug) });
+    return nocache({ ...s, ms: Date.now() - started, cron: cronSources(env).map((x) => x.slug), relay_only: relaySources().map((x) => x.slug) });
   }
   if (path === "/__admin/reset") {
     // 서킷 브레이커 해제: ?source=ppomppu 또는 전체
@@ -222,7 +227,7 @@ async function handleAdmin(req: Request, path: string, url: URL, env: Env): Prom
   }
   if (path === "/__admin/sources") {
     const relay = (await env.DB.prepare("SELECT * FROM relay_state").all().catch(() => ({ results: [] }))).results;
-    return nocache({ enabled: enabledSources(env).map((x) => x.slug), relay, state: (await env.DB.prepare("SELECT * FROM source_state").all()).results });
+    return nocache({ enabled: enabledSources(env).map((x) => x.slug), cron: cronSources(env).map((x) => x.slug), relay_only: relaySources().map((x) => x.slug), relay, state: (await env.DB.prepare("SELECT * FROM source_state").all()).results });
   }
   if (path === "/__admin/queue") {
     return nocache({ queue: (await env.DB.prepare("SELECT source, post_id, title, reason, queued_at FROM parse_queue WHERE resolved = 0 ORDER BY id DESC LIMIT 50").all()).results });

@@ -1,5 +1,5 @@
 import type { Env, ParsedDeal, RawPost } from "./types";
-import { enabledSources } from "./config";
+import { cronSources } from "./config";
 import { fetchSource } from "./fetchers";
 import { parseTitle, looksLikeGiftDeal } from "./parse";
 import { dedupeKey, dealId, isoWeekKST, dateKST, sha1 } from "./dedupe";
@@ -25,8 +25,8 @@ export async function runCollection(env: Env): Promise<RunSummary> {
   const { medians } = ctx;
 
   const relayed = await recentlyRelayed(env);
-  for (const src of enabledSources(env)) {
-    if (relayed.has(src.slug)) continue; // 중계 수집기가 담당 중
+  for (const src of cronSources(env)) {
+    if (relayed.has(src.slug)) continue; // (relay_only 가 아니어도) 최근 중계가 들어온 소스는 건너뜀
     if (await isPaused(env, src.slug)) continue;
     let posts: RawPost[];
     try {

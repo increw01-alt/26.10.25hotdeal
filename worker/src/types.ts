@@ -60,6 +60,7 @@ export interface SourceDef {
   notes?: string;
   ua?: "bot" | "feed";
   headers?: Record<string, string>;
+  relay_only?: boolean; // Worker IP 차단 → 중계로만 수집
 }
 
 export interface RatesMap {

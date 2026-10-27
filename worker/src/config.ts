@@ -33,3 +33,13 @@ export function enabledSources(env: Env): SourceDef[] {
   const disabled = new Set((env.DISABLED_SOURCES ?? "").split(",").map((x) => x.trim()).filter(Boolean));
   return SOURCES.filter((s) => s.enabled !== false && !disabled.has(s.slug));
 }
+
+/** Worker Cron이 직접 가져올 소스 = 활성 소스 중 relay_only 가 아닌 것 */
+export function cronSources(env: Env): SourceDef[] {
+  return enabledSources(env).filter((s) => !s.relay_only);
+}
+
+/** 중계 수집기가 담당하는 소스 */
+export function relaySources(): SourceDef[] {
+  return SOURCES.filter((s) => s.enabled !== false && s.relay_only);
+}

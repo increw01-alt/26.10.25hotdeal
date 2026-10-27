@@ -1,5 +1,5 @@
 {
-  "$comment": "커뮤니티 핫딜 소스 정의. 2026-10-27 PC 조사(scripts/probe-sources.mjs) 결과 반영: 뽐뿌·루리웹 RSS 정상, 클리앙 RSS 없음(HTML), 퀘이사존 봇 차단, 에펨코리아 HTML 응답. 소스별 'ua' 필드(bot|feed: 둘 다 봇임을 밝히고 연락처 URL 포함)와 'headers' 객체(Referer 등)를 지정할 수 있다. 브라우저로 위장하는 UA는 쓰지 않는다(출처 정책).",
+  "$comment": "커뮤니티 핫딜 소스 정의. 2026-10-27 PC 조사(scripts/probe-sources.mjs) 결과 반영: 뽐뿌·루리웹 RSS 정상, 클리앙 RSS 없음(HTML), 퀘이사존 봇 차단, 에펨코리아 HTML 응답. 소스별 'ua' 필드(bot|feed: 둘 다 봇임을 밝히고 연락처 URL 포함)와 'headers' 객체(Referer 등)를 지정할 수 있다. 브라우저로 위장하는 UA는 쓰지 않는다(출처 정책). 'relay_only': true 인 소스는 Worker Cron이 직접 가져오지 않고 중계(relay)로만 들어온다.",
   "sources": [
     {
       "slug": "ppomppu",
@@ -11,7 +11,8 @@
       "robots_checked_at": "2026-10-27",
       "rss_verified_at": "2026-10-27",
       "title_pattern_hint": "[쇼핑몰] 상품명 (가격/배송비)",
-      "notes": "RSS 15건/EUC-KR. 제목 앞 대괄호가 판매처. 추천·댓글 수는 RSS에 없음."
+      "notes": "RSS 15건/EUC-KR. 제목 앞 대괄호가 판매처. 추천·댓글 수는 RSS에 없음. [relay_only] Worker IP 차단 → GitHub Actions 중계로만 수집, Cron은 직접 시도하지 않음.",
+      "relay_only": true
     },
     {
       "slug": "ppomppu_coupon",
@@ -23,7 +24,8 @@
       "robots_checked_at": "2026-10-27",
       "rss_verified_at": "2026-10-27",
       "title_pattern_hint": "[브랜드/판매처] 쿠폰·이벤트 내용",
-      "notes": "RSS 15건. 상품권 할인쿠폰·적립 이벤트가 올라오는 게시판. Worker IP 차단은 뽐뿌 본게시판과 동일할 것으로 보여 중계 대상."
+      "notes": "RSS 15건. 상품권 할인쿠폰·적립 이벤트가 올라오는 게시판. Worker IP 차단은 뽐뿌 본게시판과 동일할 것으로 보여 중계 대상. [relay_only] Worker IP 차단 → GitHub Actions 중계로만 수집, Cron은 직접 시도하지 않음.",
+      "relay_only": true
     },
     {
       "slug": "clien",
@@ -47,7 +49,8 @@
       "robots_checked_at": "2026-10-27",
       "rss_verified_at": "2026-10-27",
       "title_pattern_hint": "[쇼핑몰] 상품명 (가격) (배송비)",
-      "notes": "RSS 28건. PC에서는 0.1초 응답, Worker에서는 시간 초과 발생 → 타임아웃 20초로 상향 후 재확인."
+      "notes": "RSS 28건. PC에서는 0.1초 응답, Worker에서는 시간 초과 발생 → 타임아웃 20초로 상향 후 재확인. [relay_only] Worker IP 차단 → GitHub Actions 중계로만 수집, Cron은 직접 시도하지 않음.",
+      "relay_only": true
     },
     {
       "slug": "quasarzone",

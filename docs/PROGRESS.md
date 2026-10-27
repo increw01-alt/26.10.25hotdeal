@@ -33,7 +33,7 @@
 |---|---|
 | 사이트 | https://hotdeal-hub.pages.dev |
 | API | https://hotdeal-hub-worker.increw01.workers.dev (`/api/status.json`) |
-| 수집 | 클리앙: Worker Cron 1분 / 뽐뿌·루리웹: PC 중계 60초 / 퀘이사존·에펨코리아: 차단으로 비활성 |
+| 수집 | 클리앙: Worker Cron 1분 / 뽐뿌·뽐뿌쿠폰·루리웹: **GitHub Actions 중계**(5분 잡 안에서 60초 반복, PC 불필요) + 선택적 PC 중계 / 퀘이사존·에펨코리아: 차단으로 비활성 |
 | 배포 | `main` push → Actions. 작업 브랜치 `claude/upbeat-noether-60p86o`는 CI만 |
 | 관리 | `/__admin/*` + `x-admin-token` (secret ADMIN_TOKEN, 값은 메모장) |
 
@@ -41,7 +41,7 @@
 
 - 문의 이메일이 임시값(`contact@example.com`) → 실제 주소로 교체 후 main 배포
 - ADMIN_TOKEN을 대화에 노출되지 않은 값으로 교체
-- 중계 수집기 자동 시작(작업 스케줄러) 또는 국내 VPS 이전
+- (해결) 중계는 GitHub Actions가 담당. PC 중계·VPS는 선택 사항
 - 클리앙 추천 수 셀렉터 확인(현재 0으로 들어옴), 파싱 실패 큐 점검
 - 커스텀 도메인, 검색엔진 사이트맵 제출, 2주 후 점수 가중치 보정
 

@@ -115,6 +115,9 @@ curl.exe -s -H "x-admin-token: $T" "$A/__admin/probe?url=…&ua=feed&h=Referer:h
 
 ## 7. 중계 수집기 (Worker IP가 차단된 소스)
 
+**기본 경로는 GitHub Actions `relay.yml`이다.** 2026-10-27 확인 결과 GitHub 서버 IP는 뽐뿌·루리웹에 차단되지 않는다. 5분마다 잡이 시작되고 잡 안에서 60초 간격으로 반복하므로 사실상 1분 주기이며, 공개 저장소라 무료다. 필요한 설정은 secret `RELAY_TOKEN`(= ADMIN_TOKEN)과 variable `API_BASE`뿐이다. 아래 PC 중계는 GitHub가 장애일 때의 예비 수단이다.
+
+
 2026-10-27 확인: 뽐뿌(빈 응답)·루리웹(522)·퀘이사존(403)·에펨코리아(430)는 Cloudflare Workers IP의 요청을 받지 않는다. 클리앙만 Worker에서 직접 수집된다.
 그래서 **뽐뿌·루리웹은 다른 네트워크(사용자 PC 또는 국내 서버)에서 가져와 Worker로 넘기는 중계 방식**을 쓴다. 파서는 Worker와 같은 코드(`worker/src/relay.ts` → `dist/relay.mjs`)다.
 

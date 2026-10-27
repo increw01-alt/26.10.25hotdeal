@@ -17,11 +17,11 @@ crons = ["* * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "hotdeal-hub"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "f9a28aac-7dd4-4ecd-bbb6-bd2f956be092"
 
 [vars]
-SITE_NAME = "REPLACE_SITE_NAME"
-SITE_URL = "https://REPLACE_WITH_SITE_URL"
+SITE_NAME = "핫딜 허브"
+SITE_URL = "https://hotdeal-hub.pages.dev"
 # 공개 URL은 vars (D-13). 시세 연동을 켜려면 RATES_ENABLED="true"
 RATES_ENABLED = "false"
 RATES_JSON_URL = "https://REPLACE_WITH_RATES_JSON_URL"
@@ -33,7 +33,7 @@ CB_FAIL_THRESHOLD = "5"
 CB_COOLDOWN_MIN = "60"
 FEED_CACHE_SECONDS = "900"
 FETCH_TIMEOUT_MS = "10000"
-USER_AGENT = "HotdealHubBot/0.1 (+https://REPLACE_WITH_SITE_URL/about/bot)"
+USER_AGENT = "HotdealHubBot/0.1 (+https://hotdeal-hub.pages.dev/about/bot)"
 # 에펨코리아 활성화 여부 (D-15)
 ENABLE_FMKOREA = "false"
 

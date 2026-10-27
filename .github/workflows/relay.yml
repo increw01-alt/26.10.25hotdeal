@@ -23,7 +23,7 @@ jobs:
         env:
           RELAY_API: ${{ vars.API_BASE }}
           RELAY_TOKEN: ${{ secrets.RELAY_TOKEN }}
-          RELAY_SOURCES: ppomppu,ruliweb
+          RELAY_SOURCES: ppomppu,ppomppu_coupon,ruliweb
           RELAY_UA: "Mozilla/5.0 (compatible; HotdealHubRelay/0.1 GitHubActions; +https://hotdeal-hub.pages.dev/about/)"
         run: |
           [ -z "$RELAY_TOKEN" ] && { echo "::error::RELAY_TOKEN secret 이 없습니다"; exit 1; }

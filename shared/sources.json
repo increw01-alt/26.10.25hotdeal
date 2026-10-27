@@ -14,6 +14,18 @@
       "notes": "RSS 15건/EUC-KR. 제목 앞 대괄호가 판매처. 추천·댓글 수는 RSS에 없음."
     },
     {
+      "slug": "ppomppu_coupon",
+      "name": "뽐뿌 쿠폰게시판",
+      "tier": 1,
+      "type": "rss",
+      "url": "https://www.ppomppu.co.kr/rss.php?id=coupon",
+      "board_url": "https://www.ppomppu.co.kr/zboard/zboard.php?id=coupon",
+      "robots_checked_at": "2026-10-27",
+      "rss_verified_at": "2026-10-27",
+      "title_pattern_hint": "[브랜드/판매처] 쿠폰·이벤트 내용",
+      "notes": "RSS 15건. 상품권 할인쿠폰·적립 이벤트가 올라오는 게시판. Worker IP 차단은 뽐뿌 본게시판과 동일할 것으로 보여 중계 대상."
+    },
+    {
       "slug": "clien",
       "name": "클리앙",
       "tier": 1,

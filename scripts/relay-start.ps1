@@ -9,7 +9,7 @@
 param(
   [string]$Token = $env:RELAY_TOKEN,
   [string]$Api = "https://hotdeal-hub-worker.increw01.workers.dev",
-  [string]$Sources = "ppomppu,ruliweb",
+  [string]$Sources = "ppomppu,ppomppu_coupon,ruliweb",
   [int]$Interval = 60,
   [switch]$Once
 )

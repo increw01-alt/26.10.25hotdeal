@@ -11,7 +11,7 @@
 import { readFile, writeFile, mkdir, cp, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { esc, buildCardIndex, renderDealCardSection, renderCardsPageSections, publicCards } from "./lib/card-benefits.mjs";
+import { esc, buildCardIndex, renderDealCardSection, renderCardsPageSections, publicCards, CARD_NOTICE } from "./lib/card-benefits.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
@@ -139,7 +139,7 @@ const ld = (graph) => raw(JSON.stringify({ "@context": "https://schema.org", "@g
 // ---------- 빌드 시작 ----------
 const data = await loadData();
 await rm(dist, { recursive: true, force: true });
-for (const p of ["assets", "api", "brands", "deal", "weekly", "about", "open-data", "embed"]) await mkdir(path.join(dist, p), { recursive: true });
+for (const p of ["assets", "api", "brands", "deal", "weekly", "about", "open-data", "embed", "cards"]) await mkdir(path.join(dist, p), { recursive: true });
 
 const lastUpdated = data.meta.last_updated ?? data.meta.generated_at;
 const staleNow = !lastUpdated || (NOW - new Date(lastUpdated)) / 36e5 > site.guards.staleHours;
@@ -379,6 +379,19 @@ for (const [i, w] of weeks.entries()) {
     brandSlugs: raw(BRANDS.map((b) => `<code class="rounded bg-surface-muted px-1">${esc(b.slug)}</code>`).join(" ")),
   }));
 }
+{
+  // 쇼핑몰별 카드 혜택 (shared/cards.json, verified 카드만). 상품권 적용 여부를 반드시 함께 표시한다.
+  const crumbItems = [{ name: "홈", href: "/" }, { name: "카드 혜택" }];
+  await emit("/cards/", await render("cards", {
+    ...common, title: `쇼핑몰별 카드 혜택 · 상품권 구매 적용 여부 | ${site.siteName}`,
+    description: "지마켓·옥션·11번가·네이버·쿠팡·SSG닷컴·롯데온 등 쇼핑몰별로 지금 혜택을 주는 카드와 상품권 구매 적용 여부를 카드사 공식 안내 기준으로 정리했습니다.",
+    canonical: `${site.siteUrl}/cards/`, jsonld: ld([...orgLd, breadcrumbLd(crumbItems)]), crumbs: crumbs(crumbItems),
+    intro: "상품권 딜이 자주 나오는 쇼핑몰별로, 그 쇼핑몰에서 결제할 때 혜택을 주는 카드를 카드사 공식 안내 기준으로 정리했습니다. 상테크에서 가장 중요한 점은 대부분의 카드가 상품권·기프트카드·선불 충전 결제를 적립·할인에서 제외한다는 것입니다. 그래서 카드마다 \"상품권 구매 시\" 적용 여부를 따로 표시합니다. 이 표는 이미 가진 카드 중 무엇으로 결제할지 고르는 용도이며, 카드 발급을 권유하지 않습니다.",
+    updatedAt: cardIndex.updatedAt, staleAfterDays: cardIndex.staleAfterDays, notice: CARD_NOTICE,
+    merchantSections: raw(renderCardsPageSections({ index: cardIndex, merchantsOrder: brandsJson.merchants.map((m) => m.slug), merchantName, issuerName })
+      || '<p class="mt-8 rounded-md bg-surface-muted p-6 text-center text-sm text-ink-500">확인된 카드 혜택이 아직 없습니다.</p>'),
+  }), { lastmod: `${cardIndex.updatedAt}T00:00:00.000Z` });
+}
 await emit("/embed/", (await render("embed", { title: `${site.siteName} 핫딜 TOP 5`, brandSlug: "" })).replace(' data-brand=""', ""), { indexable: false });
 for (const b of BRANDS) await emit(`/embed/${b.slug}/`, await render("embed", { title: `${site.siteName} ${b.name} 핫딜`, brandSlug: b.slug }), { indexable: false });
 await emit("/404.html", await render("404", { ...common, title: `페이지를 찾을 수 없습니다 | ${site.siteName}`, description: "요청한 페이지가 없습니다.", canonical: `${site.siteUrl}/404.html`, robots: "noindex", jsonld: ld(orgLd) }), { indexable: false });
@@ -390,6 +403,7 @@ await cp(path.join(root, "src/js/embed-config.js"), path.join(dist, "assets/embe
 await writeFile(path.join(dist, "embed.js"), (await readFile(path.join(root, "src/js/embed.js"), "utf8")).replaceAll("__API_BASE__", apiBase).replaceAll("__SITE_NAME__", site.siteName));
 await writeFile(path.join(dist, "assets/favicon.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#1d58f0"/><path d="M8 15h16v10H8z M6 10h20v5H6z M16 10v15" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/></svg>`);
 await writeFile(path.join(dist, "api/deals.json"), JSON.stringify({ ...data.meta, deals: activeDeals }));
+await writeFile(path.join(dist, "api/cards.json"), JSON.stringify({ source: { name: site.siteName, url: site.siteUrl, terms: `${site.siteUrl}/open-data/` }, ...publicCards(cardsDoc, { merchantName }) }));
 await writeFile(path.join(dist, "robots.txt"), `User-agent: *\nAllow: /\nDisallow: /embed/\nSitemap: ${site.siteUrl}/sitemap.xml\n`);
 await writeFile(path.join(dist, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${u.loc}</loc><lastmod>${u.lastmod}</lastmod></url>`).join("\n")}\n</urlset>\n`);
 await writeFile(path.join(dist, "_headers"), `/api/*\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=300\n/embed.js\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=3600\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n`);

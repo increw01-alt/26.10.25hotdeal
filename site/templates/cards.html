@@ -1,0 +1,19 @@
+{{> head}}
+{{> header}}
+{{> breadcrumb}}
+<main id="main" class="container flex-1 py-8 md:py-12">
+  <h1 class="text-3xl font-extrabold">쇼핑몰별 카드 혜택</h1>
+  <p class="mt-2 max-w-2xl text-ink-700 leading-relaxed">{{intro}}</p>
+  <div class="mt-5 card p-4 text-sm">
+    <p class="font-semibold">"상품권 구매 시" 열 읽는 법</p>
+    <ul class="mt-2 space-y-1.5 text-ink-700">
+      <li><span class="chip bg-green-50 text-status-live">상품권 적용</span> 카드사 공식 안내에서 상품권·선불 결제에도 혜택이 적용된다고 확인한 경우</li>
+      <li><span class="chip bg-surface-muted text-ink-700">상품권 제외</span> 공식 안내에 상품권·기프트카드·선불 충전이 적립·할인에서 제외된다고 적힌 경우</li>
+      <li><span class="chip bg-surface-muted text-ink-700">상품권 적용 미확인</span> 공식 안내에서 상품권 관련 문구를 찾지 못한 경우</li>
+    </ul>
+  </div>
+  <p class="mt-3 text-xs text-ink-500">마지막 갱신 {{updatedAt}} · 확인일이 {{staleAfterDays}}일을 넘긴 카드에는 "재확인 필요" 표시가 붙습니다. 카드별 공식 안내 링크에서 최신 조건을 확인하세요.</p>
+  {{merchantSections}}
+  <p class="mt-10 text-xs text-ink-500">{{notice}}</p>
+</main>
+{{> footer}}

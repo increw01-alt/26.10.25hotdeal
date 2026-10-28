@@ -21,6 +21,7 @@
 | D-14 | B-8 FAQ 스키마 | FAQPage JSON-LD는 넣되 리치결과 노출은 기대하지 않음. 본문 FAQ는 콘텐츠로 유지. | `site/templates/brand.html` |
 | D-15 | 소스 우선순위 | 1차: 뽐뿌·클리앙·루리웹(RSS), 퀘이사존(HTML). 2차: 에펨코리아(차단 여부 확인 후). 제목 파싱은 정규식 1차, 실패 건만 LLM. | `shared/sources.json` |
 | D-16 | 참고 사이트 | hotdeal.zip 구조 분석은 네트워크 허용 후 진행. 필드 구성·필터 구조를 비교 반영 예정. | 미정 |
+| D-17 | 카드 혜택 데이터 (2026-10-28) | 카드사 **공식 페이지로 확인한 카드만 공개**(`status=verified`, 공식 출처 URL·확인일 필수, 60일 지나면 "재확인 필요" 표시). 제3자 카드 비교 사이트의 문구·이미지·링크는 조사용으로만 쓰고 저장소·사이트에 넣지 않는다. 카드 신청 링크·수수료 없음(모집 아님). 상품권 구매 적용 여부(`giftcard`)는 반드시 명시한다. | `shared/cards.json`, `scripts/check-cards.mjs`, `site/scripts/lib/card-benefits.mjs`, 스펙 `docs/superpowers/specs/2026-10-28-card-benefits-design.md` |
 
 ## 미결 사항
 

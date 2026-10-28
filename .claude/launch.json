@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "site-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "dist", "-l", "4173"],
+      "cwd": "site",
+      "port": 4173
+    }
+  ]
+}

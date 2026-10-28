@@ -16,7 +16,12 @@
 │  ├─ sources.json            커뮤니티 소스 정의(RSS/HTML, 확인일)
 │  ├─ brands.json             상품권 브랜드·판매처·카드사 별칭
 │  ├─ design-tokens.json      색상·서체·간격 토큰
+│  ├─ cards.json              쇼핑몰별 카드 혜택(카드사 공식 페이지로 확인한 카드만, D-17)
 │  └─ site.config.json        사이트명·URL·제휴(off)·가드 기준값
+├─ scripts/                   배포 전 검사·조사 도구
+│  ├─ check-config.mjs        REPLACE_ 플레이스홀더 검사
+│  ├─ check-cards.mjs         cards.json 검사 (lib/cards-schema.mjs, test/)
+│  └─ research/               카드 비교 사이트 크롤에서 후보 추출 (결과는 저장소 밖)
 ├─ worker/                    Cloudflare Workers (수집 Cron 1분 + 공개 API) + D1
 │  ├─ wrangler.toml           바인딩·vars·cron
 │  ├─ schema.sql              D1 스키마
@@ -31,7 +36,8 @@
 │  └─ test/                   vitest (파서·dedupe·RSS) + fixtures
 ├─ site/                      정적 사이트 (Tailwind CLI 빌드 → Cloudflare Pages)
 │  ├─ scripts/build.mjs       API → HTML 빌드 (API 실패 시 빌드 중단)
-│  ├─ templates/              index.html + partials(헤더·푸터·딜 카드·배너·제휴고지)
+│  ├─ scripts/lib/card-benefits.mjs  딜 상세 카드 섹션·/cards/ 페이지·api/cards.json 렌더링 (test/)
+│  ├─ templates/              index.html, cards.html + partials(헤더·푸터·딜 카드·배너·제휴고지)
 │  ├─ src/styles/input.css    Tailwind 진입 CSS
 │  ├─ src/js/site.js          메뉴·필터·갱신지연 배너
 │  └─ data/sample.*.json      샘플 데이터(개발용)

@@ -31,6 +31,12 @@
 - **DB에 남은 오탐 딜 1건** `ca0216244403f1f6`("[신세계] 진한 보리차 진액"): 관리 토큰으로 삭제 필요. 안 지우면 10-29 09:03 UTC 이후 자동 종료(48시간 규칙).
   `curl.exe -s -H "x-admin-token: $T" "$A/__admin/delete?id=ca0216244403f1f6"`
 - 점검 결과: `active_deals` 3(컬쳐랜드 5만·CGV 관람권·위 오탐 1), 중계 stale 없음, Deploy Site schedule 매시 정상, 홈 지연 배너는 `hidden`(정상).
+- **쇼핑몰별 카드 혜택 1단계 완료** (설계 `docs/superpowers/specs/2026-10-28-card-benefits-design.md`, 계획 `docs/superpowers/plans/2026-10-28-card-benefits-phase1.md`, 결정 D-17):
+  - 배경: 사용자가 내려받은 카드고릴라 크롤(`C:\Users\OK\Desktop\블로그이미지\26.10.28카드고릴라`, 저장소 밖)을 검토. 카드 유의사항 대부분이 상품권·선불충전을 혜택에서 제외하므로 "핫딜 × 카드" 자동 결합은 하지 않고, 공식 출처로 검증한 표를 만들기로 함. 최종 목표는 모든 핫딜 + 쇼핑몰별 카드 혜택 정보 사이트(2단계: 일반 핫딜 수집, 3단계: 주간 카드 행사·내 카드 저장·웹앱).
+  - 데이터 `shared/cards.json`: 카드 14장(현대 2·신한 5·KB 2·삼성 3·롯데 2), 판매처 9곳(지마켓·옥션·11번가·네이버·쿠팡·SSG닷컴·롯데온·카카오톡 선물하기·토스). 전부 카드사 공식 페이지에서 혜택·실적·한도·상품권 제외 문구 확인 → `giftcard=excluded`. PAYCO 전용 카드와 하나 네이버페이 머니 체크카드는 카드사 사이트에서 찾지 못해 미수록.
+  - 검증기 `scripts/check-cards.mjs`(CI·배포 전 실행), 조사 스크립트 `scripts/research/cards-from-crawl.mjs <크롤 api 폴더>`(결과 `candidates.md`는 크롤 폴더 옆에 생성, 저장소 밖).
+  - 사이트: 딜 상세에 "{판매처} 카드 혜택" 섹션(상품권 적용 카드 본문 / 제외·미확인 카드는 접힌 목록), `/cards/` 페이지(메뉴 "카드 혜택"), 정적 `api/cards.json`. 테스트: site 8건(`npm test`), scripts 14건(`node --test "scripts/test/*.test.mjs"`).
+  - 다음 손볼 것: 카드 확인일이 60일 지나면 "재확인 필요"가 뜨니 12월 말 전에 재확인. 카드 추가 시 공식 페이지 URL·확인일 필수(D-17).
 
 ## 시작할 때
 

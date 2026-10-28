@@ -2,5 +2,212 @@
   "$comment": "쇼핑몰별 카드 혜택 (스펙: docs/superpowers/specs/2026-10-28-card-benefits-design.md). 카드사 공식 페이지로 확인한 항목만 status=verified. 제3자 비교 사이트의 문구·링크 금지. 검사: node scripts/check-cards.mjs",
   "updated_at": "2026-10-28",
   "stale_after_days": 60,
-  "cards": []
+  "cards": [
+    {
+      "slug": "hyundai-gmarket-kkok",
+      "issuer": "hyundai",
+      "name": "지마켓 꼭 현대카드",
+      "type": "credit",
+      "annual_fee": "2만원",
+      "prev_month_min": 300000,
+      "official_url": "https://www.hyundaicard.com/cpc/cr/CPCCR0201_01.hc?cardWcd=GMSE4",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "gmarket", "kind": "points", "rate": 7, "amount": null, "cap": "G마켓·옥션 합산 월 1만 4천 스마일캐시", "giftcard": "excluded", "note": "스마일캐시 적립. 상품권 등 현금성 유가증권과 선불카드 구매·충전은 적립과 전월 실적에서 제외" },
+        { "merchant": "auction", "kind": "points", "rate": 7, "amount": null, "cap": "G마켓·옥션 합산 월 1만 4천 스마일캐시", "giftcard": "excluded", "note": "스마일캐시 적립. 상품권 등 현금성 유가증권과 선불카드 구매·충전은 적립과 전월 실적에서 제외" }
+      ]
+    },
+    {
+      "slug": "hyundai-naver-edition3",
+      "issuer": "hyundai",
+      "name": "네이버 현대카드 Edition3",
+      "type": "credit",
+      "annual_fee": "1만 5천원",
+      "prev_month_min": 400000,
+      "official_url": "https://www.hyundaicard.com/cpc/cr/CPCCR0201_01.hc?cardWcd=NVE3",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "naver", "kind": "points", "rate": 5, "amount": null, "cap": "월 1만 5천 네이버페이 포인트(멤버십 회원 기준)", "giftcard": "excluded", "note": "네이버플러스 멤버십 적립 대상 결제에 최대 5% 적립. 상품권·기프티콘 등 현금성 유가증권과 선불 충전은 적립 제외" }
+      ]
+    },
+    {
+      "slug": "shinhan-11st",
+      "issuer": "shinhan",
+      "name": "11번가 신한카드",
+      "type": "credit",
+      "annual_fee": null,
+      "prev_month_min": 0,
+      "official_url": "https://www.shinhancard.com/pconts/html/card/apply/credit/1188443_2207.html",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "11st", "kind": "points", "rate": 1, "amount": null, "cap": null, "giftcard": "excluded", "note": "11번가에서 11PAY로 결제 시 11PAY 포인트 1% 적립(실적·한도 없음). 기프트카드 구매와 선불 충전은 적립 제외" }
+      ]
+    },
+    {
+      "slug": "shinhan-11st-check",
+      "issuer": "shinhan",
+      "name": "11번가 신한카드 체크",
+      "type": "check",
+      "annual_fee": null,
+      "prev_month_min": 0,
+      "official_url": "https://www.shinhancard.com/pconts/html/card/apply/check/1187965_2206.html",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "11st", "kind": "points", "rate": 0.5, "amount": null, "cap": null, "giftcard": "excluded", "note": "11번가에서 11PAY로 결제 시 11PAY 포인트 0.5% 적립(실적·한도 없음). 기프트카드 구매와 선불 충전은 적립 제외" }
+      ]
+    },
+    {
+      "slug": "shinhan-naverpay-linefriends",
+      "issuer": "shinhan",
+      "name": "네이버페이 라인프렌즈 신한카드",
+      "type": "credit",
+      "annual_fee": null,
+      "prev_month_min": 0,
+      "official_url": "https://www.shinhancard.com/pconts/html/card/apply/credit/1196945_2207.html",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "naver", "kind": "points", "rate": 2, "amount": null, "cap": null, "giftcard": "excluded", "note": "네이버쇼핑·디지털콘텐츠·네이버페이 온라인 가맹점 결제 2% 적립(실적·한도 없음). 상품권·기프트카드·선불 충전은 제외" }
+      ]
+    },
+    {
+      "slug": "shinhan-kookmin-haengbok",
+      "issuer": "shinhan",
+      "name": "신한카드 국민행복",
+      "type": "credit",
+      "annual_fee": null,
+      "prev_month_min": 300000,
+      "official_url": "https://www.shinhancard.com/pconts/html/card/apply/credit/1200235_2207.html",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "coupang", "kind": "discount", "rate": 5, "amount": null, "cap": "월 2회, 건당 최대 5천원(통합 할인한도 전월 30만 이상 1만원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" },
+        { "merchant": "ssg", "kind": "discount", "rate": 5, "amount": null, "cap": "월 2회, 건당 최대 5천원(통합 할인한도 전월 30만 이상 1만원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" },
+        { "merchant": "lotteon", "kind": "discount", "rate": 5, "amount": null, "cap": "월 2회, 건당 최대 5천원(통합 할인한도 전월 30만 이상 1만원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" },
+        { "merchant": "11st", "kind": "discount", "rate": 5, "amount": null, "cap": "월 2회, 건당 최대 5천원(통합 할인한도 전월 30만 이상 1만원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" },
+        { "merchant": "gmarket", "kind": "discount", "rate": 5, "amount": null, "cap": "월 2회, 건당 최대 5천원(통합 할인한도 전월 30만 이상 1만원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" }
+      ]
+    },
+    {
+      "slug": "shinhan-kookmin-haengbok-check",
+      "issuer": "shinhan",
+      "name": "신한카드 국민행복 체크",
+      "type": "check",
+      "annual_fee": null,
+      "prev_month_min": 300000,
+      "official_url": "https://www.shinhancard.com/pconts/html/card/apply/check/1200238_2206.html",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "coupang", "kind": "discount", "rate": 5, "amount": null, "cap": "월 1회, 건당 최대 3천원(통합 할인한도 전월 30만 이상 5천원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" },
+        { "merchant": "ssg", "kind": "discount", "rate": 5, "amount": null, "cap": "월 1회, 건당 최대 3천원(통합 할인한도 전월 30만 이상 5천원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" },
+        { "merchant": "lotteon", "kind": "discount", "rate": 5, "amount": null, "cap": "월 1회, 건당 최대 3천원(통합 할인한도 전월 30만 이상 5천원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" },
+        { "merchant": "11st", "kind": "discount", "rate": 5, "amount": null, "cap": "월 1회, 건당 최대 3천원(통합 할인한도 전월 30만 이상 5천원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" },
+        { "merchant": "gmarket", "kind": "discount", "rate": 5, "amount": null, "cap": "월 1회, 건당 최대 3천원(통합 할인한도 전월 30만 이상 5천원~)", "giftcard": "excluded", "note": "공식 사이트·앱에 직접 접속해 결제 시 결제일 할인. 상품권(선불전자지급수단 포함)·항공권 구매는 제외" }
+      ]
+    },
+    {
+      "slug": "kb-coupang-wow",
+      "issuer": "kb",
+      "name": "쿠팡 와우 카드",
+      "type": "credit",
+      "annual_fee": "2만원",
+      "prev_month_min": 0,
+      "official_url": "https://card.kbcard.com/CRD/DVIEW/HCAMCXPRICAC0076?mainCC=a&cooperationcode=09293",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "coupang", "kind": "points", "rate": 2, "amount": null, "cap": "월 2만원(전월 실적 조건 없음)", "giftcard": "excluded", "note": "쿠팡·쿠팡이츠·쿠팡플레이 2% 쿠팡캐시 적립. 와우 멤버십 회원만 발급. 상품권·선불카드 구입·충전은 적립 제외" }
+      ]
+    },
+    {
+      "slug": "kb-coupang-wow-check",
+      "issuer": "kb",
+      "name": "쿠팡 와우 KB체크카드",
+      "type": "check",
+      "annual_fee": "없음",
+      "prev_month_min": 0,
+      "official_url": "https://card.kbcard.com/CRD/DVIEW/HCAMCXPRICAC0076?mainCC=a&cooperationcode=09673",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "coupang", "kind": "points", "rate": 0.5, "amount": null, "cap": "월 5천원(전월 실적 조건 없음)", "giftcard": "excluded", "note": "쿠팡 등 0.5% 쿠팡캐시 적립. 쿠팡 앱에서 신용카드 발급 거절 시에만 신청 가능. 상품권·선불카드 구입·충전은 제외" }
+      ]
+    },
+    {
+      "slug": "samsung-gmarket",
+      "issuer": "samsung",
+      "name": "G마켓 삼성카드",
+      "type": "credit",
+      "annual_fee": "1만 5천원",
+      "prev_month_min": 400000,
+      "official_url": "https://www.samsungcard.com/home/card/cardinfo/PGHPPCCCardCardinfoDetails001?code=AAP1889",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "gmarket", "kind": "points", "rate": 5, "amount": null, "cap": "전월 실적 구간별 통합 월 최대 4만 빅포인트", "giftcard": "excluded", "note": "G마켓·옥션 결제 5% 빅포인트 적립. 기프트·선불카드 구매·충전과 상품권 구매는 적립 제외" },
+        { "merchant": "auction", "kind": "points", "rate": 5, "amount": null, "cap": "전월 실적 구간별 통합 월 최대 4만 빅포인트", "giftcard": "excluded", "note": "G마켓·옥션 결제 5% 빅포인트 적립. 기프트·선불카드 구매·충전과 상품권 구매는 적립 제외" }
+      ]
+    },
+    {
+      "slug": "samsung-ssgcom",
+      "issuer": "samsung",
+      "name": "SSG.COM 삼성카드",
+      "type": "credit",
+      "annual_fee": "1만 5천원",
+      "prev_month_min": 0,
+      "official_url": "https://www.samsungcard.com/home/card/cardinfo/PGHPPCCCardCardinfoDetails001?code=AAP1683",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "ssg", "kind": "points", "rate": 1, "amount": null, "cap": "기본 1%는 한도 없음, 추가 9%는 전월 실적 구간별 통합 월 한도", "giftcard": "excluded", "note": "SSG.COM 결제 시 SSG MONEY 1% 기본 적립(실적 무관), 실적 충족 시 최대 9% 추가 적립. 상품권·선불 구매는 제외" }
+      ]
+    },
+    {
+      "slug": "samsung-toss",
+      "issuer": "samsung",
+      "name": "토스 삼성카드",
+      "type": "credit",
+      "annual_fee": "1만 5천원",
+      "prev_month_min": 300000,
+      "official_url": "https://www.samsungcard.com/home/card/cardinfo/PGHPPCCCardCardinfoDetails001?code=AAP1882",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "toss", "kind": "discount", "rate": 15, "amount": null, "cap": "전월 실적 구간별 통합 월 할인한도(최대 3만원)", "giftcard": "excluded", "note": "토스페이·토스쇼핑 결제 15% 결제일 할인(그 외 온라인 영역 10%). 토스 앱에서만 신청. 상품권·선불 구매는 할인 제외" }
+      ]
+    },
+    {
+      "slug": "lotte-kapick",
+      "issuer": "lotte",
+      "name": "롯데카드 KaPick",
+      "type": "credit",
+      "annual_fee": "2만원",
+      "prev_month_min": 400000,
+      "official_url": "https://www.lottecard.co.kr/app/LPCDADB_V100.lc?vtCdKndC=P15517-A15517",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "kakao", "kind": "points", "rate": 10, "amount": null, "cap": "전월 실적 구간별 월 1만~2만 카카오페이 포인트", "giftcard": "excluded", "note": "카카오톡 선물하기를 카카오페이로 결제 시 10% 적립. 카카오톡(페이) 앱에서만 신청. 상품권(모바일 상품권 포함) 구매는 적립 제외" }
+      ]
+    },
+    {
+      "slug": "lotte-oners",
+      "issuer": "lotte",
+      "name": "LOTTE ONers 롯데카드",
+      "type": "credit",
+      "annual_fee": "5천원",
+      "prev_month_min": 300000,
+      "official_url": "https://www.lottecard.co.kr/app/LPCDADB_V100.lc?vtCdKndC=P12921-A12921",
+      "verified_at": "2026-10-28",
+      "status": "verified",
+      "benefits": [
+        { "merchant": "lotteon", "kind": "points", "rate": 3, "amount": null, "cap": "건당 2천 포인트, 월 2만 L.POINT", "giftcard": "excluded", "note": "롯데ON 온라인 결제 시 L.POINT 3% 특별적립(지난달 실적 30만 이상). 기프트·선불카드·포인트 충전과 상품권 구매는 적립 제외" }
+      ]
+    }
+  ]
 }

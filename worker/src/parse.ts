@@ -11,6 +11,11 @@ const merchantIndex = MERCHANTS.flatMap((m) => m.aliases.map((a) => ({ alias: no
 const cardIndex = CARD_ISSUERS.flatMap((c) => c.aliases.map((a) => ({ alias: norm(a), c })))
   .sort((x, y) => y.alias.length - x.alias.length);
 
+/** 상품권 맥락 없이도 흔히 쓰이는 짧은 alias("[신세계] 보리차", "해머드릴", "주문상품", "CGV 팝콘", "스타벅스 텀블러").
+ *  이 alias로만 브랜드가 잡혔고 상품권 단서(GIFT_CONTEXT)도 액면가+판매가도 없으면 딜로 확정하지 않고 큐로 보낸다. */
+const WEAK_ALIASES = new Set(["신세계", "갤러리아", "해머", "문상", "도문", "넥슨", "스타벅스", "스벅", "cgv", "구글플레이", "네이버페이", "네페", "카카오페이"].map(norm));
+const GIFT_CONTEXT = /상품권|기프트|교환권|관람권|충전|캐시|캐쉬|포인트|e카드|원권|만권|권종|핀번호|바우처/i;
+
 /** "5만", "50,000", "5만원", "10만" → 원 단위 정수 */
 export function parseKRW(token: string): number | null {
   const t = token.replace(/[,\s원]/g, "");
@@ -76,7 +81,13 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
   const title = post.title.trim();
   const n = norm(title);
 
-  const brandHit = brandIndex.find((x) => n.includes(x.alias));
+  // 판매처: 제목 맨 앞 대괄호 우선, 없으면 전체에서 탐색
+  const bracket = title.match(/^\s*[\[(]([^\])]{1,20})[\])]/);
+  const bracketMerchant = bracket ? merchantIndex.find((x) => norm(bracket[1]).includes(x.alias))?.m.slug ?? null : null;
+
+  // 대괄호가 판매처면 브랜드는 대괄호 밖에서만 찾는다("[신세계] 보리차 …"의 '신세계'를 상품권으로 잡지 않도록)
+  const nBody = bracket && bracketMerchant ? norm(title.slice(bracket[0].length)) : n;
+  const brandHit = brandIndex.find((x) => nBody.includes(x.alias));
   if (!brandHit) return null;
   const brand = brandHit.b;
 
@@ -84,13 +95,7 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
   // 상품권·충전·구매 맥락이 함께 있으면 딜로 본다(예: "컬쳐랜드 5만원 충전 시 5% 적립").
   if (/적립|캐시백|페이백|추첨|응모/.test(title) && !/상품권|기프트|충전|권\s*구매|교환권|관람권/.test(title)) return null;
 
-  // 판매처: 제목 맨 앞 대괄호 우선, 없으면 전체에서 탐색
-  let merchant: string | null = null;
-  const bracket = title.match(/^\s*[\[(]([^\])]{1,20})[\])]/);
-  if (bracket) {
-    const bn = norm(bracket[1]);
-    merchant = merchantIndex.find((x) => bn.includes(x.alias))?.m.slug ?? null;
-  }
+  let merchant: string | null = bracketMerchant;
   if (!merchant) {
     const nWithoutBrand = n.split(brandHit.alias).join(" ");
     merchant = merchantIndex.find((x) => nWithoutBrand.includes(x.alias))?.m.slug ?? null;
@@ -130,6 +135,8 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
   if (discountRate !== null) confidence += 0.2;
   if (salePrice === null && discountRate === null) confidence = Math.min(confidence, 0.45);
   if (discountRate !== null && (discountRate < 0 || discountRate > 60)) confidence = Math.min(confidence, 0.3); // 비정상 할인율 → 큐
+  // 짧고 흔한 alias로만 잡힌 브랜드는 상품권 단서나 액면가+판매가가 함께 있어야 확정 → 없으면 큐
+  if (WEAK_ALIASES.has(brandHit.alias) && !GIFT_CONTEXT.test(title) && !(face && sale)) confidence = Math.min(confidence, 0.45);
 
   return {
     brand: brand.slug,

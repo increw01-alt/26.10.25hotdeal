@@ -23,7 +23,7 @@
     { "slug": "11st", "name": "11번가", "aliases": ["11번가", "11st", "십일번가"] },
     { "slug": "coupang", "name": "쿠팡", "aliases": ["쿠팡", "coupang"] },
     { "slug": "naver", "name": "네이버", "aliases": ["네이버", "네이버쇼핑", "스마트스토어", "naver"] },
-    { "slug": "ssg", "name": "SSG닷컴", "aliases": ["ssg", "ssg닷컴", "쓱"] },
+    { "slug": "ssg", "name": "SSG닷컴", "aliases": ["ssg", "ssg닷컴", "쓱", "신세계몰", "신세계"] },
     { "slug": "lotteon", "name": "롯데온", "aliases": ["롯데온", "lotteon"] },
     { "slug": "kakao", "name": "카카오톡 선물하기", "aliases": ["카카오톡선물하기", "카톡선물하기", "선물하기"] },
     { "slug": "toss", "name": "토스", "aliases": ["토스", "toss"] },

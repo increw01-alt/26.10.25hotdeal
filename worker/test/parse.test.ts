@@ -116,3 +116,29 @@ describe("parseTitle 실데이터 오탐 (2026-10-27)", () => {
     expect(d).toMatchObject({ brand: "cultureland", merchant: "naver", faceValue: 50000, salePrice: 46500, discountRate: 7 });
   });
 });
+
+describe("parseTitle 실데이터 오탐 (2026-10-28)", () => {
+  it("대괄호가 판매처(신세계몰)면 그 안의 '신세계'를 브랜드로 잡지 않는다", () => {
+    expect(parseTitle(post("[신세계] 진한 보리차 진액 원액 290g, 3박스 (17,900원/무료)"))).toBeNull();
+    expect(parseTitle(post("[신세계] 모바일 충전기 (9,900원/무료)"))).toBeNull();
+  });
+  it("대괄호가 판매처여도 본문에 브랜드가 있으면 딜", () => {
+    expect(parseTitle(post("[신세계] 신세계상품권 10만원권 93,000원"))).toMatchObject({ brand: "shinsegae", merchant: "ssg", faceValue: 100000, salePrice: 93000 });
+    expect(parseTitle(post("[SSG] 신세계 10만원권 93,000원"))).toMatchObject({ brand: "shinsegae", merchant: "ssg" });
+  });
+  it("대괄호가 판매처가 아니면 그 안의 브랜드도 인정한다", () => {
+    expect(parseTitle(post("[컬쳐랜드] 5만원권 46,500원 (지마켓)"))).toMatchObject({ brand: "cultureland", merchant: "gmarket", faceValue: 50000, salePrice: 46500 });
+  });
+  it("짧은 alias(해머·문상·CGV·스타벅스)는 상품권 단서나 액면가+판매가가 없으면 큐로 간다", () => {
+    expect(parseTitle(post("[쿠팡] 보쉬 해머드릴 GSB 120 (89,000원/무료)"))!.confidence).toBeLessThan(0.5);
+    expect(parseTitle(post("[네이버] 주문상품 5만원 이상 10% 할인"))!.confidence).toBeLessThan(0.5);
+    expect(parseTitle(post("[네이버] CGV 콤보 팝콘 (9,900원/무료)"))!.confidence).toBeLessThan(0.5);
+    expect(parseTitle(post("[스타벅스] 스탠리 텀블러 29,000원"))!.confidence).toBeLessThan(0.5);
+  });
+  it("짧은 alias라도 상품권 단서나 액면가+판매가가 있으면 통과", () => {
+    expect(parseTitle(post("문상 5만 46,500 (지마켓/무료)"))).toMatchObject({ brand: "cultureland", faceValue: 50000, salePrice: 46500 });
+    expect(parseTitle(post("문상 5만 46,500 (지마켓/무료)"))!.confidence).toBeGreaterThanOrEqual(0.5);
+    expect(parseTitle(post("[네이버] CGV관람권 2D (9,900원/무료)"))!.confidence).toBeGreaterThanOrEqual(0.5);
+    expect(parseTitle(post("[옥션] 스타벅스 e카드 3만원권 27,000원"))).toMatchObject({ brand: "starbucks", faceValue: 30000, salePrice: 27000 });
+  });
+});

@@ -25,6 +25,47 @@ describe("parseClienList", () => {
     expect(posts[1]).toMatchObject({ postId: "19100002", votes: 0, comments: 0 });
   });
   it("빈 HTML이면 0건", () => { expect(parseClienList("<html></html>", "clien")).toHaveLength(0); });
+
+  // 2026-10-28 실제 서비스 마크업: 추천 수가 <em> 안, 제목이 <a data-role="list-title-text"> 안
+  const liveHtml = `
+  <div class="list_content">
+    <div class="list_item symph_row jirum  " data-role="list-row" data-author-id=shpaik data-board-sn=19283308 data-comment-count=6>
+      <span class="list_stare" style="display: none;" data-role="observeIcon"><i class="fa fa-eye"></i></span>
+      <div class="list_symph view_symph" data-role="list-like-count"><em class="none">4</em></div>
+      <div class="list_title  " data-role="list-title" data-toggle-custom="dropdown">
+        <span class="list_subject" data-role="cut-string" title="[WearOS] Tick Ring 워치페이스 외 일시 무료">
+          <a href="/service/board/jirum/19283308?od=T31&po=0&category=0&groupCd=" data-role="list-title-text">
+            [WearOS] Tick Ring 워치페이스 외 일시 무료
+          </a>
+          <a class="list_reply reply_symph" href="/service/board/jirum/19283308#comment-point" data-role="ele-after" title="댓글6개">
+            <span class="rSymph05">6</span>
+          </a>
+        </span>
+        <div class="keyword">
+          <span class="view_symph" data-role="list-like-count"><span class="list_votes"><i class="fa fa-heart"></i> 4</span></span>
+        </div>
+      </div>
+      <div class="list_time"><span class="time popover">10-27<span class="timestamp">2026-10-27 13:12:24</span></span></div>
+    </div>
+    <div class="list_item symph_row jirum" data-role="list-row" data-board-sn=19283048 data-comment-count=0>
+      <div class="list_symph view_symph" data-role="list-like-count"><em class="none">0</em></div>
+      <div class="list_title" data-role="list-title">
+        <span class="list_subject" data-role="cut-string" title="[카카오] 프루블 그린 스무디 젤 클렌저 150ml (100원)">
+          <a href="/service/board/jirum/19283048?od=T31" data-role="list-title-text">
+            [카카오] 프루블 그린 스무디 젤 클렌저 150ml (100원)
+          </a>
+        </span>
+      </div>
+    </div>
+    <div class="board-nav"></div>
+  </div>`;
+  it("실서비스 마크업: 제목에 댓글 수가 붙지 않고 추천 수를 <em>에서 읽는다", () => {
+    const posts = parseClienList(liveHtml, "clien");
+    expect(posts).toHaveLength(2);
+    expect(posts[0]).toMatchObject({ postId: "19283308", title: "[WearOS] Tick Ring 워치페이스 외 일시 무료", votes: 4, comments: 6 });
+    expect(posts[0].postedAt).toBe("2026-10-27T04:12:24.000Z");
+    expect(posts[1]).toMatchObject({ postId: "19283048", title: "[카카오] 프루블 그린 스무디 젤 클렌저 150ml (100원)", votes: 0, comments: 0 });
+  });
 });
 
 describe("parseFmkoreaList", () => {

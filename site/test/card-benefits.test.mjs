@@ -37,6 +37,12 @@ test("딜 제목의 카드 행사 조건이 있으면 카드 자체 혜택과 �
   const noPromo = renderDealCardSection({ index, merchant: "gmarket", promoNote: null, ...names });
   assert.doesNotMatch(noPromo, /판매처 행사 조건/);
 });
+test("연회비가 비어 있으면 생략하지 않고 '연회비 미확인'으로 표기한다", () => {
+  const deal = renderDealCardSection({ index, merchant: "11st", ...names });
+  assert.match(deal, /연회비 미확인/);
+  const page = renderCardsPageSections({ index, merchantsOrder: ["11st"], ...names });
+  assert.match(page, /연회비 미확인/);
+});
 test("publicCards는 verified만, merchant_name 포함", () => {
   const pub = publicCards(doc, names); assert.equal(pub.cards.length, 3); assert.equal(pub.cards[0].benefits[0].merchant_name, "11번가");
 });

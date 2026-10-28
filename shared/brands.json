@@ -33,16 +33,16 @@
     { "slug": "happymoney_direct", "name": "해피머니 공식", "aliases": ["해피머니공식", "해피머니앱"] }
   ],
   "card_issuers": [
-    { "slug": "shinhan", "name": "신한카드", "aliases": ["신한카드", "신한"] },
-    { "slug": "samsung", "name": "삼성카드", "aliases": ["삼성카드", "삼성"] },
-    { "slug": "hyundai", "name": "현대카드", "aliases": ["현대카드", "현대"] },
-    { "slug": "kb", "name": "KB국민카드", "aliases": ["kb국민카드", "국민카드", "kb카드", "kb"] },
-    { "slug": "lotte", "name": "롯데카드", "aliases": ["롯데카드"] },
-    { "slug": "hana", "name": "하나카드", "aliases": ["하나카드", "하나"] },
-    { "slug": "woori", "name": "우리카드", "aliases": ["우리카드", "우리"] },
-    { "slug": "nh", "name": "NH농협카드", "aliases": ["nh농협카드", "농협카드", "nh카드", "농협"] },
-    { "slug": "bc", "name": "BC카드", "aliases": ["bc카드", "비씨카드"] },
-    { "slug": "kakaobank", "name": "카카오뱅크", "aliases": ["카카오뱅크", "카뱅"] },
-    { "slug": "tossbank", "name": "토스뱅크", "aliases": ["토스뱅크"] }
+    { "slug": "shinhan", "name": "신한카드", "aliases": ["신한카드", "신한"], "domains": ["shinhancard.com"] },
+    { "slug": "samsung", "name": "삼성카드", "aliases": ["삼성카드", "삼성"], "domains": ["samsungcard.com"] },
+    { "slug": "hyundai", "name": "현대카드", "aliases": ["현대카드", "현대"], "domains": ["hyundaicard.com"] },
+    { "slug": "kb", "name": "KB국민카드", "aliases": ["kb국민카드", "국민카드", "kb카드", "kb"], "domains": ["kbcard.com"] },
+    { "slug": "lotte", "name": "롯데카드", "aliases": ["롯데카드"], "domains": ["lottecard.co.kr"] },
+    { "slug": "hana", "name": "하나카드", "aliases": ["하나카드", "하나"], "domains": ["hanacard.co.kr"] },
+    { "slug": "woori", "name": "우리카드", "aliases": ["우리카드", "우리"], "domains": ["wooricard.com"] },
+    { "slug": "nh", "name": "NH농협카드", "aliases": ["nh농협카드", "농협카드", "nh카드", "농협"], "domains": ["nonghyup.com"] },
+    { "slug": "bc", "name": "BC카드", "aliases": ["bc카드", "비씨카드"], "domains": ["bccard.com","paybooc.co.kr"] },
+    { "slug": "kakaobank", "name": "카카오뱅크", "aliases": ["카카오뱅크", "카뱅"], "domains": ["kakaobank.com"] },
+    { "slug": "tossbank", "name": "토스뱅크", "aliases": ["토스뱅크"], "domains": ["tossbank.com"] }
   ]
 }

@@ -15,13 +15,15 @@ const isNullableString = (v) => v === null || v === undefined || typeof v === "s
 
 /**
  * @param {object} doc shared/cards.json 내용
- * @param {{ merchantSlugs: Set<string>, issuerSlugs: Set<string>, today: string }} ctx today는 YYYY-MM-DD
+ * @param {{ merchantSlugs: Set<string>, issuerSlugs: Set<string>, issuerDomains?: Map<string, string[]>, today: string }} ctx
+ *   today는 YYYY-MM-DD. issuerDomains는 발급사 slug → 공식 도메인 목록(비어 있으면 그 발급사는 도메인 검사 생략).
  * @returns {string[]} 문제 목록
  */
-export function validateCards(doc, { merchantSlugs, issuerSlugs, today }) {
+export function validateCards(doc, { merchantSlugs, issuerSlugs, issuerDomains = new Map(), today }) {
   const problems = [];
   if (!doc || typeof doc !== "object") return ["문서가 객체가 아닙니다"];
   if (!isDate(doc.updated_at)) problems.push(`updated_at 은 YYYY-MM-DD 여야 합니다 (현재: ${doc.updated_at})`);
+  else if (doc.updated_at > today) problems.push(`updated_at 이 오늘(${today}) 이후입니다 (현재: ${doc.updated_at})`);
   if (!Number.isInteger(doc.stale_after_days) || doc.stale_after_days <= 0) problems.push(`stale_after_days 는 양의 정수여야 합니다 (현재: ${doc.stale_after_days})`);
   if (!Array.isArray(doc.cards)) return [...problems, "cards 는 배열이어야 합니다"];
 
@@ -41,15 +43,27 @@ export function validateCards(doc, { merchantSlugs, issuerSlugs, today }) {
     if (!Number.isInteger(c.prev_month_min) || c.prev_month_min < 0) p(`prev_month_min 은 0 이상 정수여야 합니다 (현재: ${c.prev_month_min})`);
     if (typeof c.official_url !== "string" || !c.official_url.startsWith("https://")) p(`official_url 은 https:// 로 시작해야 합니다 (현재: ${c.official_url})`);
     else if (/card-gorilla\.com/i.test(c.official_url)) p("official_url 에 card-gorilla.com 은 쓸 수 없습니다 (카드사 공식 페이지만)");
+    else {
+      const domains = issuerDomains.get(c.issuer) ?? [];
+      if (domains.length) {
+        let host = null;
+        try { host = new URL(c.official_url).hostname.toLowerCase(); } catch { /* 아래에서 처리 */ }
+        if (!host) p(`official_url 을 URL로 해석할 수 없습니다 (현재: ${c.official_url})`);
+        else if (!domains.some((d) => host === d || host.endsWith(`.${d}`))) p(`official_url 호스트 "${host}" 는 발급사 공식 도메인(${domains.join(", ")})이 아닙니다`);
+      }
+    }
     if (!isDate(c.verified_at)) p(`verified_at 은 YYYY-MM-DD 여야 합니다 (현재: ${c.verified_at})`);
     else if (c.verified_at > today) p(`verified_at 이 오늘(${today}) 이후입니다 (현재: ${c.verified_at})`);
     if (!STATUSES.has(c.status)) p(`status 는 verified|unverified|discontinued 여야 합니다 (현재: ${c.status})`);
     if (!Array.isArray(c.benefits) || c.benefits.length === 0) return p("benefits 는 1개 이상이어야 합니다");
 
+    const seenMerchants = new Set();
     c.benefits.forEach((b, j) => {
       const q = (msg) => p(`benefits[${j}].${msg}`);
       if (!b || typeof b !== "object") return q("(객체 아님)");
       if (!merchantSlugs.has(b.merchant)) q(`merchant "${b.merchant}" 는 brands.json merchants 에 없습니다`);
+      else if (seenMerchants.has(b.merchant)) q(`merchant "${b.merchant}" 카드 안에서 중복 (판매처당 혜택 1개)`);
+      seenMerchants.add(b.merchant);
       if (!KINDS.has(b.kind)) q(`kind 는 discount|points|cashback 여야 합니다 (현재: ${b.kind})`);
       const hasRate = typeof b.rate === "number" && b.rate >= 0 && b.rate <= 100;
       const hasAmount = Number.isInteger(b.amount) && b.amount > 0;

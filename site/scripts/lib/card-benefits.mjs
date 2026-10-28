@@ -44,6 +44,8 @@ export function prevMonthLabel(n) {
   return `전월 ${n % 10000 === 0 ? `${n / 10000}만원` : `${n.toLocaleString("ko-KR")}원`} 이상`;
 }
 const typeLabel = (card) => (card.type === "check" ? "체크" : "신용");
+/** 연회비가 비어 있으면(공식 페이지 미표시) 생략하지 않고 "미확인"으로 적어 "없음"과 구분한다 */
+const annualFeeLabel = (card) => (card.annual_fee ? `연회비 ${esc(card.annual_fee)}` : "연회비 미확인");
 const giftChip = (g) => g === "applies"
   ? '<span class="chip bg-green-50 text-status-live">상품권 적용</span>'
   : g === "excluded"
@@ -57,7 +59,7 @@ function cardRow({ card, benefit, stale }, issuerName) {
     + `<div class="flex flex-wrap items-center gap-2"><span class="font-semibold">${esc(card.name)}</span><span class="text-ink-500">${esc(issuerName[card.issuer] ?? card.issuer)} · ${typeLabel(card)}</span>${giftChip(benefit.giftcard)}${staleChip(stale)}</div>`
     + `<p class="mt-1 font-semibold text-brand-700">${esc(benefitSummary(benefit))}</p>`
     + (benefit.note ? `<p class="mt-1 text-ink-700">${esc(benefit.note)}</p>` : "")
-    + `<p class="mt-1 text-xs text-ink-500">${esc(prevMonthLabel(card.prev_month_min))}${card.annual_fee ? ` · 연회비 ${esc(card.annual_fee)}` : ""} · 확인 ${esc(card.verified_at)} · ${sourceLink(card)}</p>`
+    + `<p class="mt-1 text-xs text-ink-500">${esc(prevMonthLabel(card.prev_month_min))} · ${annualFeeLabel(card)} · 확인 ${esc(card.verified_at)} · ${sourceLink(card)}</p>`
     + `</li>`;
 }
 
@@ -91,7 +93,7 @@ export function renderDealCardSection({ index, merchant, merchantName, issuerNam
 export function renderCardsPageSections({ index, merchantsOrder, merchantName, issuerName }) {
   return merchantsOrder.filter((m) => (index.byMerchant.get(m) ?? []).length > 0).map((m) => {
     const rows = entriesForMerchant(index, m).map((e) =>
-      `<tr><td class="py-2 pr-3"><span class="font-semibold">${esc(e.card.name)}</span><br><span class="text-xs text-ink-500">${esc(issuerName[e.card.issuer] ?? e.card.issuer)} · ${typeLabel(e.card)}${e.card.annual_fee ? ` · 연회비 ${esc(e.card.annual_fee)}` : ""}</span></td>`
+      `<tr><td class="py-2 pr-3"><span class="font-semibold">${esc(e.card.name)}</span><br><span class="text-xs text-ink-500">${esc(issuerName[e.card.issuer] ?? e.card.issuer)} · ${typeLabel(e.card)} · ${annualFeeLabel(e.card)}</span></td>`
       + `<td class="py-2 pr-3">${esc(benefitSummary(e.benefit))}${e.benefit.note ? `<br><span class="text-xs text-ink-500">${esc(e.benefit.note)}</span>` : ""}</td>`
       + `<td class="py-2 pr-3 whitespace-nowrap">${esc(prevMonthLabel(e.card.prev_month_min))}</td>`
       + `<td class="py-2 pr-3">${giftChip(e.benefit.giftcard)}</td>`

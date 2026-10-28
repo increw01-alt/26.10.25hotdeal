@@ -11,6 +11,7 @@
 import { readFile, writeFile, mkdir, cp, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { esc, buildCardIndex, renderDealCardSection, renderCardsPageSections, publicCards } from "./lib/card-benefits.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
@@ -23,6 +24,8 @@ const site = JSON.parse(await readFile(path.join(root, "../shared/site.config.js
 const apiBase = process.env.API_BASE || site.apiBase;
 const brandsJson = JSON.parse(await readFile(path.join(root, "../shared/brands.json"), "utf8"));
 const sourcesJson = JSON.parse(await readFile(path.join(root, "../shared/sources.json"), "utf8"));
+const cardsDoc = JSON.parse(await readFile(path.join(root, "../shared/cards.json"), "utf8"));
+const cardIndex = buildCardIndex(cardsDoc, { now: NOW }); // 쇼핑몰별 카드 혜택(verified만)
 const BRANDS = brandsJson.brands;
 const brandName = Object.fromEntries(BRANDS.map((b) => [b.slug, b.name]));
 const merchantName = Object.fromEntries(brandsJson.merchants.map((m) => [m.slug, m.name]));
@@ -106,7 +109,7 @@ async function tpl(name) {
   if (!tplCache.has(name)) tplCache.set(name, await readFile(path.join(root, "templates", `${name}.html`), "utf8"));
   return tplCache.get(name);
 }
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// esc 는 lib/card-benefits.mjs 에서 import (템플릿·카드 섹션이 같은 이스케이프를 쓴다)
 const raw = (s) => `raw:${s}`;
 async function render(name, vars) {
   let html = await tpl(name);
@@ -306,6 +309,7 @@ for (const d of data.deals.filter(dealEligible)) {
     salePriceLabel: krw(deal.sale_price), faceValueLabel: krw(deal.face_value), discountLabel: pct(deal.discount_rate),
     fourthLabel: deal.rate_gap != null ? "시세 대비" : "커뮤니티 반응", fourthValue: deal.rate_gap != null ? `${Number(deal.rate_gap).toFixed(1)}%p ↓` : `추천 ${deal.votes_total ?? 0}`,
     conditionRows: raw(cond), priceRows: raw(priceRows), historyRows: raw(historyRows), repeatWeeks: det.repeat_weeks ?? 1, sourceRows: raw(sourceRows), relatedRows: raw(relatedRows),
+    cardBenefits: raw(renderDealCardSection({ index: cardIndex, merchant: deal.merchant ?? null, merchantName, issuerName })),
     ctaCaption: ended ? "이 딜은 종료되었습니다" : "구매는 원문 글의 링크로 이동합니다",
     ctaButton: raw(ctaButton),
     ctaNote: ended ? "종료 후에도 조건 비교를 위해 기록을 남겨 둡니다." : "판매처 페이지에서 가격·카드 조건·한도를 반드시 다시 확인하세요. 이 사이트는 판매·중개를 하지 않습니다.",

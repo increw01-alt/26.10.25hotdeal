@@ -15,15 +15,20 @@
 
 브랜치: `claude/upbeat-noether-60p86o` (아직 `main` 없음)
 
-## 내일 시작할 때 (2026-10-28)
+## 2026-10-28 아침 점검 (클라우드 세션에서 확인)
+
+- **GitHub `schedule`이 살아났다.** Deploy Site 매시 재빌드가 10-27 15:18 UTC부터 자동 실행 중(15:18, 20:39, 00:28 …), Relay Collect도 schedule 이벤트로 실행됨.
+- 중계는 밤새 132회 실행(플랜 B dispatch + schedule), 전부 성공. 플랜 B 확장(사이트 재빌드 깨우기)은 **불필요**해짐.
+- 이후 작업은 사용자 로컬 PC의 Claude Code 세션에서 진행하기로 함(이 파일이 인수인계 문서).
+
+## 시작할 때
 
 1. 이 파일을 읽고 아래 "확인 순서"를 먼저 돈다.
 2. 로컬 PC: `cd "C:\Users\OK\Desktop\블로그이미지\26.10.25 핫딜"` → `git pull origin main`
 3. 작업은 `claude/upbeat-noether-60p86o`에 올리고 `main`에도 바로 반영한다(사용자 승인됨). `main` push = 자동 배포.
 
 ### 확인 순서
-- GitHub Actions에서 `event: schedule` 실행이 생겼는지(Relay Collect 5분, Deploy Site 매시 7분). 10-27 19:00 KST 기준 **0건**.
-  - 여전히 0건이면: 사이트 재빌드도 Worker가 1시간마다 `deploy-site.yml`을 workflow_dispatch로 깨우도록 플랜 B 확장(`worker/src/dispatch.ts`에 함수 하나 추가, 같은 PAT 사용).
+- (해결됨 10-28) GitHub schedule 자동 실행 정상. 플랜 B는 보조로 유지.
 - `https://hotdeal-hub-worker.increw01.workers.dev/api/status.json`: `relay[].stale`이 전부 false인지, `active_deals`가 늘고 있는지.
 - 관리 점검(두 번째 PowerShell, `worker` 폴더): `$T="<ADMIN_TOKEN>"; $A="https://hotdeal-hub-worker.increw01.workers.dev"` 후
   `curl.exe -s -H "x-admin-token: $T" "$A/__admin/sources"`, `"$A/__admin/queue"`(파싱 보류 글 확인).

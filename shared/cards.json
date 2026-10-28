@@ -1,0 +1,6 @@
+{
+  "$comment": "쇼핑몰별 카드 혜택 (스펙: docs/superpowers/specs/2026-10-28-card-benefits-design.md). 카드사 공식 페이지로 확인한 항목만 status=verified. 제3자 비교 사이트의 문구·링크 금지. 검사: node scripts/check-cards.mjs",
+  "updated_at": "2026-10-28",
+  "stale_after_days": 60,
+  "cards": []
+}

@@ -26,6 +26,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: site/package-lock.json }
       - run: npm ci
+      - name: 공용 스크립트 테스트 (카드 스키마·후보 추출)
+        run: node --test "../scripts/test/*.test.mjs"
+      - name: 카드 데이터 검사
+        run: node ../scripts/check-cards.mjs
       - name: 설정 검사 스크립트 문법 확인 (플레이스홀더 상태에서는 실패가 정상)
         run: node ../scripts/check-config.mjs || true
       - run: node scripts/build.mjs --sample

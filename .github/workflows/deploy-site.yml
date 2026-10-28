@@ -31,6 +31,8 @@ jobs:
         run: node ../scripts/check-config.mjs --site
         env:
           API_BASE: ${{ vars.API_BASE }}
+      - name: 카드 데이터 검사 (shared/cards.json)
+        run: node ../scripts/check-cards.mjs
       - name: HTML 빌드 (API 데이터)
         run: node scripts/build.mjs
         env:

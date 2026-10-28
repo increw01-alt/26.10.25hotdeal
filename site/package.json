@@ -9,7 +9,8 @@
     "build:html": "node scripts/build.mjs",
     "build": "npm run build:html && npm run build:css",
     "dev": "npm run build:html -- --sample && tailwindcss -i ./src/styles/input.css -o ./dist/assets/site.css --watch",
-    "preview": "npx serve dist"
+    "preview": "npx serve dist",
+    "test": "node --test \"test/*.test.mjs\""
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17",

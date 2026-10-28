@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: site/package-lock.json }
       - run: npm ci
+      - name: 사이트 렌더링 테스트 (카드 혜택)
+        run: npm test
       - name: 공용 스크립트 테스트 (카드 스키마·후보 추출)
         run: node --test "../scripts/test/*.test.mjs"
       - name: 카드 데이터 검사

@@ -30,6 +30,13 @@ test("카드가 하나도 없는 판매처는 없음 문구만", () => {
   const html = renderDealCardSection({ index, merchant: "naver", ...names });
   assert.match(html, /네이버에서 상품권 결제에 혜택을 주는 카드는 없습니다\./); assert.doesNotMatch(html, /<details/);
 });
+test("딜 제목의 카드 행사 조건이 있으면 카드 자체 혜택과 별개임을 한 줄로 알린다", () => {
+  const withPromo = renderDealCardSection({ index, merchant: "gmarket", promoNote: "현대카드 8% 즉시할인", ...names });
+  assert.match(withPromo, /현대카드 8% 즉시할인/); assert.match(withPromo, /판매처 행사 조건/);
+  assert.ok(withPromo.indexOf("판매처 행사 조건") < withPromo.indexOf("혜택을 주는 카드는 없습니다"));
+  const noPromo = renderDealCardSection({ index, merchant: "gmarket", promoNote: null, ...names });
+  assert.doesNotMatch(noPromo, /판매처 행사 조건/);
+});
 test("publicCards는 verified만, merchant_name 포함", () => {
   const pub = publicCards(doc, names); assert.equal(pub.cards.length, 3); assert.equal(pub.cards[0].benefits[0].merchant_name, "11번가");
 });

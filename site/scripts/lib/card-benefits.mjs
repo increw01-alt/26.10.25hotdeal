@@ -61,10 +61,17 @@ function cardRow({ card, benefit, stale }, issuerName) {
     + `</li>`;
 }
 
-/** 딜 상세의 "{판매처} 카드 혜택" 섹션 */
-export function renderDealCardSection({ index, merchant, merchantName, issuerName }) {
+/**
+ * 딜 상세의 "{판매처} 카드 혜택" 섹션.
+ * promoNote: 딜 제목에서 뽑은 판매처 카드 행사 조건(deal.card_benefit). 있으면 카드 자체 혜택과 별개임을 한 줄로 알린다
+ * (행사 조건은 "구매 조건"에 이미 있으므로 여기서 반복하지 않고 관계만 설명).
+ */
+export function renderDealCardSection({ index, merchant, merchantName, issuerName, promoNote = null }) {
   const mName = merchant ? (merchantName[merchant] ?? merchant) : null;
-  const head = `<section class="mt-8" aria-labelledby="h-cards"><h2 id="h-cards" class="text-lg font-bold">${mName ? `${esc(mName)} 카드 혜택` : "카드 혜택"}</h2>`;
+  const promo = promoNote
+    ? `<p class="mt-3 text-sm text-ink-700">이 딜의 "${esc(promoNote)}"은 판매처 행사 조건(위 구매 조건)이며, 아래의 카드 자체 상시 혜택과는 별개입니다.</p>`
+    : "";
+  const head = `<section class="mt-8" aria-labelledby="h-cards"><h2 id="h-cards" class="text-lg font-bold">${mName ? `${esc(mName)} 카드 혜택` : "카드 혜택"}</h2>${promo}`;
   const foot = `<p class="mt-3 text-xs text-ink-500">${esc(CARD_NOTICE)}</p></section>`;
   if (!merchant) return `${head}<p class="mt-3 text-sm text-ink-500">판매처가 확인되지 않아 카드 혜택을 연결하지 못했습니다.</p>${foot}`;
 

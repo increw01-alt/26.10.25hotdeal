@@ -309,7 +309,7 @@ for (const d of data.deals.filter(dealEligible)) {
     salePriceLabel: krw(deal.sale_price), faceValueLabel: krw(deal.face_value), discountLabel: pct(deal.discount_rate),
     fourthLabel: deal.rate_gap != null ? "시세 대비" : "커뮤니티 반응", fourthValue: deal.rate_gap != null ? `${Number(deal.rate_gap).toFixed(1)}%p ↓` : `추천 ${deal.votes_total ?? 0}`,
     conditionRows: raw(cond), priceRows: raw(priceRows), historyRows: raw(historyRows), repeatWeeks: det.repeat_weeks ?? 1, sourceRows: raw(sourceRows), relatedRows: raw(relatedRows),
-    cardBenefits: raw(renderDealCardSection({ index: cardIndex, merchant: deal.merchant ?? null, merchantName, issuerName })),
+    cardBenefits: raw(renderDealCardSection({ index: cardIndex, merchant: deal.merchant ?? null, merchantName, issuerName, promoNote: deal.card_benefit ?? null })),
     ctaCaption: ended ? "이 딜은 종료되었습니다" : "구매는 원문 글의 링크로 이동합니다",
     ctaButton: raw(ctaButton),
     ctaNote: ended ? "종료 후에도 조건 비교를 위해 기록을 남겨 둡니다." : "판매처 페이지에서 가격·카드 조건·한도를 반드시 다시 확인하세요. 이 사이트는 판매·중개를 하지 않습니다.",

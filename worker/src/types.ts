@@ -54,6 +54,24 @@ export interface ParsedDeal {
   weakOnly: boolean;        // 짧은 alias로만 잡혔고 상품권 단서가 없음(일반 딜 후보)
 }
 
+/** 일반 상품 딜의 제목 파싱 결과 (D-18) */
+export interface ParsedProduct {
+  merchant: string | null;      // merchants slug
+  merchantRaw: string | null;   // 사전에 없는 판매처의 원문 표기
+  productName: string;
+  tokens: string[];             // 묶기용 정규화 토큰
+  salePrice: number | null;
+  priceKind: "exact" | "descriptive" | null;
+  priceText: string | null;     // descriptive일 때의 원문
+  shipping: string | null;
+  discountRate: number | null;
+  cardIssuers: string[];
+  cardBenefit: string | null;
+  limitPerPerson: string | null;
+  paymentNote: string | null;
+  confidence: number;           // 0~1
+}
+
 export interface SourceDef {
   slug: string;
   name: string;

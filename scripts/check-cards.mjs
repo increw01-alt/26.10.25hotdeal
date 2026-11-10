@@ -17,6 +17,7 @@ const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10); // 
 const problems = validateCards(doc, {
   merchantSlugs: new Set(brands.merchants.map((m) => m.slug)),
   issuerSlugs: new Set(brands.card_issuers.map((c) => c.slug)),
+  issuerDomains: new Map(brands.card_issuers.map((c) => [c.slug, c.domains ?? []])), // 공식 페이지 도메인만 허용 (D-17)
   today,
 });
 

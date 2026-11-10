@@ -160,7 +160,7 @@ test("Markdown에는 info 본문이 들어가지 않고 판매처별 표가 생�
 
 - [ ] **Step 5: `scripts/research/cards-from-crawl.mjs` CLI** — 인자 `<api폴더> [--out <파일>]`. 폴더의 `*.json`을 `JSON.parse`로만 읽고(실패 파일은 건너뜀, 개수만 집계), `isLiveCardRecord`로 거르고 `body.idx`로 중복 제거, `shared/brands.json` merchants로 `matchMerchants`, 각 후보의 `stance`는 해당 카드의 모든 `key_benefit[].info`를 태그 제거 후 이어 붙여 `giftcardStance`로 판정. `refUrl`은 `https://www.card-gorilla.com/card/detail/<idx>`(조사 파일에만 기록). 기본 출력 경로는 `path.resolve(apiDir, "..", "..", "candidates.md")`. 마지막에 `카드 N장 중 판매처 매칭 M장, 긍정 문맥 K장 → <경로>` 출력. 출력 경로가 저장소 안이면 오류로 종료.
 
-- [ ] **Step 6: 실제 크롤로 실행** — Run: `node scripts/research/cards-from-crawl.mjs "C:/Users/OK/Desktop/블로그이미지/26.10.28카드고릴라/output/api"` → Expected: 요약 한 줄, `C:\Users\OK\Desktop\블로그이미지\26.10.28카드고릴라\candidates.md` 생성, `git status`에 새 파일 없음
+- [ ] **Step 6: 실제 크롤로 실행** — Run: `node scripts/research/cards-from-crawl.mjs "<로컬 크롤 폴더>/output/api"` (저장소 밖) → Expected: 요약 한 줄, `<로컬 크롤 폴더>/candidates.md` 생성, `git status`에 새 파일 없음
 
 - [ ] **Step 7: 커밋**
 

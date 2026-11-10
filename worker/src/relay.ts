@@ -113,6 +113,9 @@ async function fetchShopHead(startUrl: string, ua: string): Promise<{ html: stri
  * - 글 페이지를 읽었거나 글이 지워진 경우만 시도로 센다. 일시 장애(429, 5xx, 시간 초과)는 보내지 않고, 그 소스는 이번 루프에서 더 요청하지 않는다.
  * - deadline 이 가까우면 새 글을 시작하지 않는다.
  */
+/** 차단·장애로 쉬는 소스. 프로세스가 사는 동안(Actions 는 약 4.5분) 유지한다 */
+const paused = new Set<string>();
+
 async function runDetails(a: Args, deadline = Infinity): Promise<void> {
   const env = relayEnv(a.ua);
   const headers = { "content-type": "application/json", "x-admin-token": a.token, "user-agent": a.ua };
@@ -123,7 +126,6 @@ async function runDetails(a: Args, deadline = Infinity): Promise<void> {
     pending = ((await res.json()) as { posts?: typeof pending }).posts ?? [];
   } catch (e) { console.error(`[relay] 상세 대상 조회 실패: ${(e as Error).message}`); return; }
   const stat = { done: 0, shop: 0, image: 0, retry: 0 };
-  const paused = new Set<string>();
   for (const p of pending) {
     if (Date.now() > deadline - 35_000) break; // 글 하나에 최악 30초 남짓
     if (paused.has(p.source)) continue;
@@ -137,7 +139,8 @@ async function runDetails(a: Args, deadline = Infinity): Promise<void> {
         status = r.status; text = r.text;
       } catch (e) { console.error(`[relay] 상세 ${p.source}/${p.post_id}: ${(e as Error).message.slice(0, 120)}`); }
       const outcome = pageOutcome(status);
-      if (outcome === "retry") { paused.add(p.source); stat.retry++; console.error(`[relay] 상세 ${p.source}: 응답 ${status ?? "없음"} → 이번 루프는 건너뜀`); continue; }
+      if (outcome === "retry" || outcome === "blocked") { paused.add(p.source); console.error(`[relay] 상세 ${p.source}: 응답 ${status ?? "없음"} → 이 실행 동안 쉼`); }
+      if (outcome === "retry") { stat.retry++; continue; }
       if (outcome === "ok") shop = extractShopUrl(p.source, text);
       if (shop) { const head = await fetchShopHead(shop, a.ua); if (head) image = extractOgImage(head.html, head.url); }
     }

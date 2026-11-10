@@ -14,7 +14,8 @@ const NON_SHOP_HOSTS = [
 /** 봇 요청을 막는 판매처(2026-11-10 조사). 대표 이미지를 요청하지 않는다 */
 const NO_IMAGE_HOSTS = ["coupang.com", "gmarket.co.kr", "auction.co.kr", "naver.com", "naver.me", "11st.co.kr"];
 /** 소스별 글 페이지 도메인 */
-const SOURCE_HOSTS: Record<string, string> = { ppomppu: "ppomppu.co.kr", ppomppu_coupon: "ppomppu.co.kr", ruliweb: "ruliweb.com", clien: "clien.net" };
+// 뽐뿌는 뺐다: 2026-11-10 운영에서 글 페이지 요청이 403 으로 막혔다(RSS 는 허용). 막는 곳은 우회하지 않는다.
+const SOURCE_HOSTS: Record<string, string> = { ruliweb: "ruliweb.com", clien: "clien.net" };
 /** 상세 수집 대상 소스 */
 export const DETAIL_SOURCES = Object.keys(SOURCE_HOSTS);
 
@@ -179,9 +180,10 @@ export function extractOgImage(page: string, pageUrl: string): string | null {
  * 글 페이지 응답을 어떻게 셀지. ok: 읽었다(주소가 없어도 시도 1회). gone: 지워진 글(시도 1회).
  * retry: 일시 장애·차단으로 보고 시도로 세지 않는다(다음 루프에 다시).
  */
-export function pageOutcome(status: number | null): "ok" | "gone" | "retry" {
+export function pageOutcome(status: number | null): "ok" | "gone" | "blocked" | "retry" {
   if (status !== null && status >= 200 && status < 300) return "ok";
   if (status === 404 || status === 410) return "gone";
+  if (status === 401 || status === 403) return "blocked"; // 시도로 세고, 그 소스는 이 실행 동안 더 요청하지 않는다
   return "retry";
 }
 

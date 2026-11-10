@@ -7,17 +7,21 @@ import { DETAIL_SOURCES, type DetailResult } from "./detail";
 
 export const DETAIL_MAX_TRIES = 2;
 export const DETAIL_WINDOW_HOURS = 24;
-export const DETAIL_BATCH = 8;
+/** 한 번에 소스마다 줄 글 수. 소스별로 따로 세어, 한 소스가 막혀도 다른 소스의 글이 밀리지 않는다 */
+export const DETAIL_BATCH = 4;
 
 /** 상세가 필요한 글: 쇼핑몰 주소가 없고, 시도 2회 미만, 24시간 이내, 닫히지 않은 글. 최신 먼저 */
 export function pendingDetailsQuery(now = new Date(), limit = DETAIL_BATCH): { sql: string; binds: unknown[] } {
   const since = new Date(now.getTime() - DETAIL_WINDOW_HOURS * 3600_000).toISOString();
   const marks = DETAIL_SOURCES.map(() => "?").join(",");
   return {
-    sql: `SELECT source, post_id, post_url FROM deal_posts
-          WHERE detail_tries < ? AND first_seen > ? AND shop_url IS NULL AND closed = 0 AND source IN (${marks})
-          ORDER BY first_seen DESC LIMIT ?`,
-    binds: [DETAIL_MAX_TRIES, since, ...DETAIL_SOURCES, Math.min(Math.max(1, Math.floor(limit) || DETAIL_BATCH), 20)],
+    sql: `SELECT source, post_id, post_url FROM (
+            SELECT source, post_id, post_url, first_seen,
+                   ROW_NUMBER() OVER (PARTITION BY source ORDER BY first_seen DESC) AS rn
+            FROM deal_posts
+            WHERE detail_tries < ? AND first_seen > ? AND shop_url IS NULL AND closed = 0 AND source IN (${marks})
+          ) WHERE rn <= ? ORDER BY first_seen DESC`,
+    binds: [DETAIL_MAX_TRIES, since, ...DETAIL_SOURCES, Math.min(Math.max(1, Math.floor(limit) || DETAIL_BATCH), 10)],
   };
 }
 

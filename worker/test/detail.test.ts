@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { extractShopUrl, cleanShopUrl, extractOgImage, shouldFetchImage, sanitizeDetailResults, detailPageUrl, pageOutcome, isPrivateAddress } from "../src/detail";
+import { pendingDetailsQuery } from "../src/detail-store";
+import { DETAIL_SOURCES, extractShopUrl, cleanShopUrl, extractOgImage, shouldFetchImage, sanitizeDetailResults, detailPageUrl, pageOutcome, isPrivateAddress } from "../src/detail";
 
 // HTML 조각은 모두 지어낸 것이다(구조만 실제와 같다).
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
@@ -121,7 +122,7 @@ describe("shouldFetchImage", () => {
 describe("detailPageUrl", () => {
   it("클리앙은 쿼리를 떼고(robots 가 ? 를 막는다) https 로 맞춘다", () => {
     expect(detailPageUrl("clien", "https://www.clien.net/service/board/jirum/123?od=T31&po=0")).toBe("https://www.clien.net/service/board/jirum/123");
-    expect(detailPageUrl("ppomppu", "http://www.ppomppu.co.kr/zboard/view.php?id=ppomppu&no=7")).toBe("https://www.ppomppu.co.kr/zboard/view.php?id=ppomppu&no=7");
+    expect(detailPageUrl("ruliweb", "http://bbs.ruliweb.com/market/board/1020/read/7")).toBe("https://bbs.ruliweb.com/market/board/1020/read/7");
   });
   it("소스의 도메인이 아니면 null (엉뚱한 곳으로 요청하지 않는다)", () => {
     expect(detailPageUrl("clien", "https://evil.test/service/board/jirum/1")).toBeNull();
@@ -162,7 +163,24 @@ describe("리뷰: pageOutcome (시도 횟수를 올릴지)", () => {
   it("정상 응답과 삭제된 글만 시도로 센다. 일시 장애는 다음에 다시", () => {
     expect(pageOutcome(200)).toBe("ok");
     expect(pageOutcome(404)).toBe("gone"); expect(pageOutcome(410)).toBe("gone");
-    for (const s of [429, 500, 502, 503, 403, 301, null]) expect(pageOutcome(s)).toBe("retry");
+    for (const s of [429, 500, 502, 503, 301, null]) expect(pageOutcome(s)).toBe("retry");
+  });
+  it("차단 응답(401, 403)은 시도로 세고 그 소스를 쉰다", () => {
+    expect(pageOutcome(403)).toBe("blocked"); expect(pageOutcome(401)).toBe("blocked");
+  });
+});
+
+describe("운영 반영 뒤 수정: 뽐뿌 제외, 소스별 대기", () => {
+  it("뽐뿌는 글 페이지 요청을 막으므로 상세 수집 대상이 아니다(2026-11-10 운영에서 403)", () => {
+    expect(DETAIL_SOURCES).toEqual(["ruliweb", "clien"]);
+    expect(detailPageUrl("ppomppu", "https://www.ppomppu.co.kr/zboard/view.php?id=ppomppu&no=7")).toBeNull();
+    expect(detailPageUrl("ppomppu_coupon", "https://www.ppomppu.co.kr/zboard/view.php?id=coupon&no=7")).toBeNull();
+  });
+  it("대기 목록은 소스마다 따로 센다(한 소스가 막혀도 다른 소스가 밀리지 않게)", () => {
+    const q = pendingDetailsQuery(new Date("2026-11-10T12:00:00Z"));
+    expect(q.sql).toMatch(/PARTITION BY source/);
+    expect(q.binds).toEqual([2, "2026-11-09T12:00:00.000Z", "ruliweb", "clien", 4]);
+    expect(pendingDetailsQuery(new Date("2026-11-10T12:00:00Z"), 99).binds.at(-1)).toBe(10);
   });
 });
 

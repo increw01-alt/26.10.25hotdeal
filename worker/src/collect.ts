@@ -1,15 +1,22 @@
-import type { Env, ParsedDeal, RawPost } from "./types";
+import type { Env, ParsedDeal, ParsedProduct, RawPost } from "./types";
 import { cronSources } from "./config";
 import { fetchSource } from "./fetchers";
-import { parseTitle, looksLikeGiftDeal } from "./parse";
+import { routePost } from "./route";
+import { merchantKey, pickGroup, productDedupeKey } from "./group";
 import { dedupeKey, dealId, isoWeekKST, dateKST, sha1 } from "./dedupe";
 import { computeScore, median } from "./score";
 import { checkActiveRatio, isPaused, recordSourceFail, recordSourceOk } from "./guards";
 import { notifyOps } from "./notify";
 import { loadRates, rateForBrand } from "./rates";
 
-const ENDED_AFTER_HOURS = 48;   // 48시간 동안 어느 소스에서도 안 보이면 종료
-const ENDING_AFTER_HOURS = 24;  // 24시간 넘게 안 보이면 종료 임박
+const ENDED_AFTER_HOURS = 48;   // 상품권: 48시간 동안 어느 소스에서도 안 보이면 종료
+const ENDING_AFTER_HOURS = 24;  // 상품권: 24시간 넘게 안 보이면 종료 임박
+export const PRODUCT_ENDED_AFTER_HOURS = 24;  // 일반 딜은 빨리 소진된다 (D-18)
+export const PRODUCT_ENDING_AFTER_HOURS = 12;
+/** 점수가 이만큼 이상 달라졌을 때만 다시 쓴다(1분마다 진행 중 딜 전부를 쓰지 않기 위해) */
+export const SCORE_WRITE_DELTA = 0.002;
+/** 이미 연결된 일반 딜 글은 이 간격 안에 다시 봐도 쓰지 않는다(추천·댓글이 늘었거나 닫힘이 풀릴 때는 쓴다) */
+const TOUCH_INTERVAL_MIN = 10;
 
 export interface RunSummary {
   fetched: number; parsed: number; newDeals: number; activeDeals: number; guardTripped: boolean; errors: string[];
@@ -68,23 +75,46 @@ export interface IngestCtx {
 }
 
 /** 원본 글 목록 → 파싱 → 딜 upsert. Cron과 개발용 주입(/__dev/ingest)이 공유한다. */
-export async function ingestPosts(env: Env, posts: RawPost[], ctx: IngestCtx): Promise<{ parsed: number; newDeals: number; queued: number; skipped: number }> {
-  const out = { parsed: 0, newDeals: 0, queued: 0, skipped: 0 };
+export async function ingestPosts(env: Env, posts: RawPost[], ctx: IngestCtx): Promise<{ parsed: number; newDeals: number; queued: number; skipped: number; products: number }> {
+  const out = { parsed: 0, newDeals: 0, queued: 0, skipped: 0, products: 0 };
+  const closedDeals = new Set<string>(); // 이번 실행에서 글이 닫힌 일반 딜
   for (const post of posts) {
     if (ctx.blocked.has(`${post.source}:${post.postId}`)) { out.skipped++; continue; }
-    if (!looksLikeGiftDeal(post.title)) { out.skipped++; continue; }
-    const parsed = parseTitle(post);
-    if (!parsed) { out.skipped++; continue; }
-    if (parsed.confidence < 0.5) {
-      await enqueueParse(env, post, `low confidence ${parsed.confidence}`);
-      out.queued++;
-      continue;
+    const link = await env.DB.prepare(
+      "SELECT p.deal_id, p.closed, p.votes, p.comments, p.last_seen, d.kind, d.status FROM deal_posts p JOIN deals d ON d.id = p.deal_id WHERE p.source = ? AND p.post_id = ?",
+    ).bind(post.source, post.postId).first<PostLink>();
+    const route = routePost(post, link ? (link.kind === "product" ? "product" : "gift") : null);
+    switch (route.action) {
+      case "gift":
+        out.parsed++;
+        if (await upsertDeal(env, post, route.parsed, ctx)) out.newDeals++;
+        break;
+      case "product":
+        out.parsed++; out.products++;
+        if (await upsertProductDeal(env, post, route.parsed, ctx)) out.newDeals++;
+        break;
+      case "touch":
+        out.parsed++; out.products++;
+        await touchProductPost(env, post, link!, ctx);
+        break;
+      case "close":
+        if (!link!.closed) await env.DB.prepare("UPDATE deal_posts SET closed = 1 WHERE source = ? AND post_id = ?").bind(post.source, post.postId).run();
+        closedDeals.add(link!.deal_id);
+        out.skipped++;
+        break;
+      case "queue":
+        await enqueueParse(env, post, route.reason);
+        out.queued++;
+        break;
+      default:
+        out.skipped++;
     }
-    out.parsed++;
-    if (await upsertDeal(env, post, parsed, ctx)) out.newDeals++;
   }
+  await endFullyClosedDeals(env, [...closedDeals], ctx.nowIso);
   return out;
 }
+
+interface PostLink { deal_id: string; closed: number; votes: number; comments: number; last_seen: string; kind: string; status: string }
 
 export async function buildIngestCtx(env: Env, now = new Date()): Promise<IngestCtx> {
   const blocked = new Set(
@@ -168,33 +198,130 @@ async function upsertDeal(
   return isNew;
 }
 
-async function updateStatuses(env: Env, nowIso: string): Promise<void> {
-  const endedBefore = new Date(Date.now() - ENDED_AFTER_HOURS * 3600000).toISOString();
-  const endingBefore = new Date(Date.now() - ENDING_AFTER_HOURS * 3600000).toISOString();
+/**
+ * 일반 딜 저장 (D-18, D-19). 같은 주차·같은 판매처·같은 가격의 진행 중 딜 가운데 제목이 비슷한 딜이 있으면 거기에 붙이고,
+ * 없으면 새 딜을 만든다. 새 딜이면 true.
+ */
+async function upsertProductDeal(env: Env, post: RawPost, p: ParsedProduct, ctx: IngestCtx): Promise<boolean> {
+  const mKey = merchantKey(p.merchant, p.merchantRaw);
+  let id: string | null = null;
+  // 판매처와 숫자 가격을 모두 아는 글만 유사도로 묶는다. 그 밖은 토큰이 완전히 같을 때(같은 키)만 묶인다.
+  if (p.priceKind === "exact" && p.salePrice !== null && mKey !== "-") {
+    const rows = (await env.DB.prepare(
+      `SELECT id, merchant, merchant_raw, title_tokens FROM deals
+       WHERE kind = 'product' AND iso_week = ? AND sale_price = ? AND status != 'ended' AND ${p.merchant ? "merchant = ?" : "merchant IS NULL"}
+       ORDER BY first_seen LIMIT 50`,
+    ).bind(...(p.merchant ? [ctx.week, p.salePrice, p.merchant] : [ctx.week, p.salePrice])).all<{ id: string; merchant: string | null; merchant_raw: string | null; title_tokens: string | null }>()).results;
+    id = pickGroup(p.tokens, rows.filter((r) => merchantKey(r.merchant, r.merchant_raw) === mKey).map((r) => ({ id: r.id, tokens: (r.title_tokens ?? "").split(" ").filter(Boolean) })));
+  }
+  const key = await productDedupeKey({ merchantKey: mKey, price: p.salePrice, tokens: p.tokens }, ctx.week);
+  const grouped = id !== null;
+  id ??= await dealId(key);
+  const existing = grouped ? { id } : await env.DB.prepare("SELECT id FROM deals WHERE id = ?").bind(id).first<{ id: string }>();
+  const authorHash = post.url ? (await sha1(post.url)).slice(0, 12) : null;
+
+  const dealStmt = existing
+    ? env.DB.prepare(`
+        UPDATE deals SET last_seen = ?, status = 'live', ended_at = NULL, updated_at = ?,
+          shipping = COALESCE(shipping, ?),
+          card_issuers = CASE WHEN ? != '[]' THEN ? ELSE card_issuers END,
+          card_benefit = COALESCE(?, card_benefit),
+          limit_per_person = COALESCE(?, limit_per_person),
+          payment_note = COALESCE(?, payment_note)
+        WHERE id = ?
+      `).bind(ctx.nowIso, ctx.nowIso, p.shipping, JSON.stringify(p.cardIssuers), JSON.stringify(p.cardIssuers), p.cardBenefit, p.limitPerPerson, p.paymentNote, id)
+    : env.DB.prepare(`
+        INSERT INTO deals (id, dedupe_key, iso_week, kind, brand, merchant, merchant_raw, category, title, product_name, title_tokens,
+          sale_price, price_kind, price_text, shipping, discount_rate,
+          card_issuers, card_benefit, limit_per_person, payment_note, deal_url,
+          status, first_seen, last_seen, parse_method, updated_at)
+        VALUES (?,?,?,'product','-',?,?,'product',?,?,?, ?,?,?,?,?, ?,?,?,?,?, 'live',?,?,'regex',?)
+      `).bind(id, key, ctx.week, p.merchant, p.merchantRaw, post.title, p.productName, p.tokens.join(" "),
+        p.salePrice, p.priceKind, p.priceText, p.shipping, p.discountRate,
+        JSON.stringify(p.cardIssuers), p.cardBenefit, p.limitPerPerson, p.paymentNote, post.url,
+        ctx.nowIso, ctx.nowIso, ctx.nowIso);
+
   await env.DB.batch([
-    env.DB.prepare("UPDATE deals SET status='ended', ended_at=?, updated_at=? WHERE status != 'ended' AND last_seen < ?").bind(nowIso, nowIso, endedBefore),
-    env.DB.prepare("UPDATE deals SET status='ending', updated_at=? WHERE status = 'live' AND last_seen < ?").bind(nowIso, endingBefore),
+    dealStmt,
+    env.DB.prepare(`
+      INSERT INTO deal_posts (deal_id, source, post_id, post_url, title, author_hash, posted_at, votes, comments, first_seen, last_seen)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(source, post_id) DO UPDATE SET
+        votes = MAX(deal_posts.votes, excluded.votes), comments = MAX(deal_posts.comments, excluded.comments), last_seen = excluded.last_seen
+    `).bind(id, post.source, post.postId, post.url, post.title, authorHash, post.postedAt ?? null, post.votes ?? 0, post.comments ?? 0, ctx.nowIso, ctx.nowIso),
+    env.DB.prepare(`
+      INSERT INTO deal_prices (deal_id, date, sale_price, buy_rate, votes, comments) VALUES (?,?,?,NULL,?,?)
+      ON CONFLICT(deal_id, date) DO UPDATE SET
+        sale_price = COALESCE(excluded.sale_price, deal_prices.sale_price),
+        votes = MAX(deal_prices.votes, excluded.votes), comments = MAX(deal_prices.comments, excluded.comments)
+    `).bind(id, ctx.today, p.salePrice, post.votes ?? 0, post.comments ?? 0),
+  ]);
+  return !existing;
+}
+
+/**
+ * 이미 일반 딜에 연결된 글을 다시 본 경우: 딜을 살려 두고 추천·댓글을 갱신한다. 닫혀 있던 글이면 닫힘을 푼다.
+ * 쓰기를 줄이려고, 최근에 이미 기록했고 달라진 것이 없으면 아무것도 쓰지 않는다.
+ */
+async function touchProductPost(env: Env, post: RawPost, link: PostLink, ctx: IngestCtx): Promise<void> {
+  const votes = Math.max(link.votes, post.votes ?? 0), comments = Math.max(link.comments, post.comments ?? 0);
+  const ageMin = (new Date(ctx.nowIso).getTime() - new Date(link.last_seen).getTime()) / 60000;
+  const changed = link.closed !== 0 || link.status !== "live" || votes !== link.votes || comments !== link.comments;
+  if (!changed && ageMin < TOUCH_INTERVAL_MIN) return;
+  await env.DB.batch([
+    env.DB.prepare("UPDATE deal_posts SET votes = ?, comments = ?, last_seen = ?, closed = 0 WHERE source = ? AND post_id = ?").bind(votes, comments, ctx.nowIso, post.source, post.postId),
+    env.DB.prepare("UPDATE deals SET last_seen = ?, status = 'live', ended_at = NULL, updated_at = ? WHERE id = ?").bind(ctx.nowIso, ctx.nowIso, link.deal_id),
+    env.DB.prepare(`
+      INSERT INTO deal_prices (deal_id, date, sale_price, buy_rate, votes, comments)
+      SELECT id, ?, sale_price, NULL, ?, ? FROM deals WHERE id = ?
+      ON CONFLICT(deal_id, date) DO UPDATE SET votes = MAX(deal_prices.votes, excluded.votes), comments = MAX(deal_prices.comments, excluded.comments)
+    `).bind(ctx.today, votes, comments, link.deal_id),
+  ]);
+}
+
+/** 연결된 글이 모두 닫힌 일반 딜을 종료로 바꾼다. 닫히지 않은 다른 커뮤니티 글이 있으면 딜은 남는다 */
+async function endFullyClosedDeals(env: Env, dealIds: string[], nowIso: string): Promise<void> {
+  for (let i = 0; i < dealIds.length; i += 50) {
+    const ids = dealIds.slice(i, i + 50);
+    await env.DB.prepare(
+      `UPDATE deals SET status = 'ended', ended_at = ?, updated_at = ?
+       WHERE kind = 'product' AND status != 'ended' AND id IN (${ids.map(() => "?").join(",")})
+         AND NOT EXISTS (SELECT 1 FROM deal_posts p WHERE p.deal_id = deals.id AND p.closed = 0)`,
+    ).bind(nowIso, nowIso, ...ids).run();
+  }
+}
+
+async function updateStatuses(env: Env, nowIso: string): Promise<void> {
+  const before = (hours: number) => new Date(Date.now() - hours * 3600000).toISOString();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE deals SET status='ended', ended_at=?, updated_at=? WHERE kind != 'product' AND status != 'ended' AND last_seen < ?").bind(nowIso, nowIso, before(ENDED_AFTER_HOURS)),
+    env.DB.prepare("UPDATE deals SET status='ending', updated_at=? WHERE kind != 'product' AND status = 'live' AND last_seen < ?").bind(nowIso, before(ENDING_AFTER_HOURS)),
+    env.DB.prepare("UPDATE deals SET status='ended', ended_at=?, updated_at=? WHERE kind = 'product' AND status != 'ended' AND last_seen < ?").bind(nowIso, nowIso, before(PRODUCT_ENDED_AFTER_HOURS)),
+    env.DB.prepare("UPDATE deals SET status='ending', updated_at=? WHERE kind = 'product' AND status = 'live' AND last_seen < ?").bind(nowIso, before(PRODUCT_ENDING_AFTER_HOURS)),
   ]);
 }
 
 /** 활성 딜 점수 재계산 (소스별 중앙값 정규화, D-10) */
 async function refreshScores(env: Env, medians: Record<string, { votes: number; comments: number }>, now: Date): Promise<void> {
   const rows = (await env.DB.prepare(`
-    SELECT d.id, d.discount_rate, d.first_seen,
+    SELECT d.id, d.discount_rate, d.first_seen, d.score, d.votes_total, d.comments_total,
       COALESCE(SUM(p.votes),0) AS votes, COALESCE(SUM(p.comments),0) AS comments,
       GROUP_CONCAT(DISTINCT p.source) AS sources
     FROM deals d LEFT JOIN deal_posts p ON p.deal_id = d.id
     WHERE d.status != 'ended' GROUP BY d.id
-  `).all<{ id: string; discount_rate: number | null; first_seen: string; votes: number; comments: number; sources: string | null }>()).results;
+  `).all<{ id: string; discount_rate: number | null; first_seen: string; score: number; votes_total: number; comments_total: number; votes: number; comments: number; sources: string | null }>()).results;
   if (rows.length === 0) return;
-  const stmts = rows.map((r) => {
+  const stmts: D1PreparedStatement[] = [];
+  for (const r of rows) {
     const srcs = (r.sources ?? "").split(",").filter(Boolean);
     const mv = srcs.length ? Math.max(...srcs.map((s) => medians[s]?.votes ?? 1)) : 1;
     const mc = srcs.length ? Math.max(...srcs.map((s) => medians[s]?.comments ?? 1)) : 1;
     const hours = (now.getTime() - new Date(r.first_seen).getTime()) / 3600000;
-    const score = computeScore({ votes: r.votes, comments: r.comments, medianVotes: mv, medianComments: mc, discountRate: r.discount_rate, hoursSinceFirstSeen: hours });
-    return env.DB.prepare("UPDATE deals SET score=?, votes_total=?, comments_total=? WHERE id=?").bind(score, r.votes, r.comments, r.id);
-  });
+    const score = computeScore({ votes: r.votes, comments: r.comments, medianVotes: mv, medianComments: mc, discountRate: r.discount_rate, hoursSinceFirstSeen: hours, sourceCount: srcs.length });
+    // 일반 딜까지 1분마다 전부 다시 쓰면 쓰기가 크게 늘어, 눈에 띄게 달라진 행만 쓴다
+    if (Math.abs(score - r.score) < SCORE_WRITE_DELTA && r.votes === r.votes_total && r.comments === r.comments_total) continue;
+    stmts.push(env.DB.prepare("UPDATE deals SET score=?, votes_total=?, comments_total=? WHERE id=?").bind(score, r.votes, r.comments, r.id));
+  }
   for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
 }
 

@@ -9,6 +9,7 @@ export function recencyDecay(hoursSinceFirstSeen: number): number {
 export function computeScore(input: {
   votes: number; comments: number; medianVotes: number; medianComments: number;
   discountRate: number | null; hoursSinceFirstSeen: number;
+  sourceCount?: number; // 이 딜이 올라온 커뮤니티 수
 }): number {
   const relVotes = input.votes / Math.max(1, input.medianVotes);
   const relComments = input.comments / Math.max(1, input.medianComments);
@@ -16,8 +17,14 @@ export function computeScore(input: {
   const s = WEIGHTS.votes * Math.log1p(relVotes)
     + WEIGHTS.comments * Math.log1p(relComments)
     + WEIGHTS.discount * discount
-    + WEIGHTS.recency * recencyDecay(input.hoursSinceFirstSeen);
+    + WEIGHTS.recency * recencyDecay(input.hoursSinceFirstSeen)
+    + sourceBonus(input.sourceCount ?? 1);
   return +s.toFixed(4);
+}
+
+/** 여러 커뮤니티에 올라온 딜 가산점: 2곳 +0.1, 3곳 이상 +0.2 (D-18). 추천 수가 없는 RSS 소스의 인기 신호 */
+export function sourceBonus(sourceCount: number): number {
+  return sourceCount >= 3 ? 0.2 : sourceCount === 2 ? 0.1 : 0;
 }
 
 export function median(values: number[]): number {

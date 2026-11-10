@@ -1,4 +1,4 @@
-/* 사이트 공통 스크립트: 모바일 메뉴, 클라이언트 필터, 갱신 지연 배너 실시간 확인 */
+/* 사이트 공통 스크립트: 모바일 메뉴, 클라이언트 필터(종류 탭 포함), 갱신 지연 배너 실시간 확인 */
 (function () {
   "use strict";
   try {
@@ -18,11 +18,24 @@
     var grid = document.querySelector("[data-deal-grid]");
     var empty = document.querySelector("[data-empty]");
     if (form && grid) {
+      var tabs = document.querySelectorAll("[data-kind-tab]");
+      var kind = "all"; // all | gift | product
       var apply = function () {
-        var brand = form.brand.value, status = form.status.value, card = form.card.value, shown = 0;
+        // 브랜드 필터는 상품권 탭에서만 쓴다(일반 딜에는 브랜드가 없다)
+        var brandSel = form.brand;
+        if (brandSel) {
+          var giftTab = kind === "gift";
+          brandSel.classList.toggle("hidden", !giftTab);
+          if (!giftTab) brandSel.value = "";
+        }
+        var brand = brandSel ? brandSel.value : "";
+        var merchant = form.merchant ? form.merchant.value : "";
+        var status = form.status.value, card = form.card.value, shown = 0;
         grid.querySelectorAll("[data-deal-id]").forEach(function (el) {
           var ok = true;
+          if (kind !== "all" && (el.dataset.kind || "gift") !== kind) ok = false;
           if (brand && el.dataset.brand !== brand) ok = false;
+          if (merchant && el.dataset.merchant !== merchant) ok = false;
           if (status ? el.dataset.status !== status : el.dataset.status === "ended") ok = false;
           var hasCard = el.querySelector(".chip-card") !== null;
           if (card === "yes" && !hasCard) ok = false;
@@ -32,6 +45,13 @@
         });
         if (empty) empty.classList.toggle("hidden", shown > 0);
       };
+      tabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          kind = tab.getAttribute("data-kind-tab") || "all";
+          tabs.forEach(function (t) { t.setAttribute("aria-pressed", String(t === tab)); });
+          apply();
+        });
+      });
       form.addEventListener("change", apply);
       apply();
     }

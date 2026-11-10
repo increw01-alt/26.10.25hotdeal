@@ -20,6 +20,9 @@
   .chip-ended { @apply chip bg-slate-100 text-status-ended; }
   .chip-card { @apply chip bg-brand-50 text-brand-700; }
   .chip-affiliate { @apply chip bg-amber-50 text-amber-800 ring-1 ring-amber-200; }
+  .tab { @apply inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink-700 ring-1 ring-ink-300 transition hover:bg-surface-muted; }
+  .tab[aria-pressed="true"] { @apply bg-brand-600 text-white ring-brand-600 hover:bg-brand-700; }
+  .tab-count { @apply text-xs font-medium tabular-nums opacity-80; }
   .stat { @apply rounded-md bg-surface-muted px-3 py-2; }
   .stat dt { @apply text-[11px] font-medium text-ink-500; }
   .stat dd { @apply text-base font-bold tabular-nums text-ink-900; }

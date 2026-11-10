@@ -1,17 +1,21 @@
 /**
  * 정적 사이트 빌드 (Phase 2).
- *  페이지: 홈, /brands/, /brands/{slug}/, /deal/{id}/, /weekly/, /weekly/{YYYY-Www}/, /about/, /open-data/,
- *          /embed/, /embed/{slug}/, 404.html, embed.js, sitemap.xml, robots.txt, _headers, /api/deals.json(정적 사본)
+ *  페이지: 홈, /deals/(전체·gift·product, 쪽 나눔), /brands/, /brands/{slug}/, /deal/{id}/, /weekly/, /weekly/{YYYY-Www}/, /about/,
+ *          /open-data/, /cards/, /embed/, /embed/{slug}/, 404.html, embed.js, sitemap.xml, robots.txt, _headers, /api/deals.json(정적 사본)
  *  데이터: Worker API → 실패 또는 0건이면 종료(빈 사이트 배포 방지, D-03)
  *          --sample 또는 ALLOW_EMPTY=1 : data/sample.*.json 사용
- *  정책:   종료 30일 지난 딜은 상세 페이지 미생성(D-07, Pages는 _redirects로 410을 지원하지 않아 404.html로 안내)
- *          종료 딜 상세는 noindex, 구매 버튼 비활성화 + 브랜드 허브 링크(D-11)
+ *  종류:   딜은 상품권(kind=gift)과 일반 핫딜(kind=product) 두 가지(D-18). kind 가 없는 옛 응답은 상품권으로 본다.
+ *          브랜드 허브·주간 비교·임베드는 상품권 전용이다.
+ *  정책:   상품권 딜은 종료 30일, 일반 딜은 종료 3일이 지나면 상세 페이지 미생성(D-07, D-20.
+ *          Pages는 _redirects로 410을 지원하지 않아 404.html로 안내)
+ *          종료 딜 상세는 noindex, 구매 버튼 비활성화 + 브랜드 허브(일반 딜은 /deals/product/) 링크(D-11)
  * 사용:    node scripts/build.mjs [--sample]
  */
 import { readFile, writeFile, mkdir, cp, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { esc, buildCardIndex, renderDealCardSection, renderCardsPageSections, publicCards, CARD_NOTICE } from "./lib/card-benefits.mjs";
+import { dealKind, pickHomeDeals, paginate, listPath, productPageEligible, priceLabel, merchantLabel } from "./lib/deals.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
@@ -66,15 +70,42 @@ async function fetchJson(url) {
     return await res.json();
   } finally { clearTimeout(t); }
 }
+const PAGE_LIMIT = 500; // API limit 상한
+/** /api/deals.json 을 offset 으로 끝까지 받는다. 첫 응답의 메타(last_updated 등)를 유지한다 */
+async function fetchAllDeals(qs) {
+  let meta = null; const deals = [];
+  for (let offset = 0; offset < 20000; offset += PAGE_LIMIT) {
+    const page = await fetchJson(`${apiBase}/api/deals.json?${qs}&limit=${PAGE_LIMIT}&offset=${offset}`);
+    if (!Array.isArray(page.deals)) throw new Error("API payload malformed");
+    meta ??= page;
+    deals.push(...page.deals);
+    if (!page.has_more || page.deals.length === 0) break;
+  }
+  return { ...meta, count: deals.length, deals };
+}
+/** 동시에 limit 개까지만 실행 */
+async function mapPool(items, limit, fn) {
+  const out = new Array(items.length); let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) { const i = next++; out[i] = await fn(items[i]); }
+  }));
+  return out;
+}
 async function loadData() {
   if (!useSample && apiBase && !apiBase.includes("REPLACE_")) {
     try {
-      const [active, ended] = await Promise.all([
-        fetchJson(`${apiBase}/api/deals.json?limit=200&status=active`),
-        fetchJson(`${apiBase}/api/deals.json?limit=200&status=ended&sort=recent`),
+      // 진행 중 딜은 전부(일반 딜은 하루 수백 건). has_more 가 없을 때까지 이어 받는다.
+      // 종료 딜은 종류별로 따로: 일반 딜이 상품권 종료 딜(30일 보존)을 밀어내지 않게 한다. 일반 딜은 종료 3일치만 필요.
+      const [active, endedGift, endedProduct] = await Promise.all([
+        fetchAllDeals("status=active"),
+        fetchJson(`${apiBase}/api/deals.json?limit=200&status=ended&sort=recent&kind=gift`),
+        fetchJson(`${apiBase}/api/deals.json?limit=${PAGE_LIMIT}&status=ended&sort=recent&kind=product`),
       ]);
       if (!Array.isArray(active.deals)) throw new Error("API payload malformed");
       if (active.deals.length === 0 && process.env.ALLOW_EMPTY !== "1") throw new Error("API returned 0 active deals; refusing to build an empty site (ALLOW_EMPTY=1 to override)");
+      // Worker 가 아직 옛 버전이면 kind 파라미터가 무시돼 두 종료 목록이 같다 → id 로 중복 제거
+      const seen = new Set(active.deals.map((d) => d.id));
+      const ended = { deals: [...(endedGift.deals ?? []), ...(endedProduct.deals ?? [])].filter((d) => d.status === "ended" && !seen.has(d.id) && seen.add(d.id)) };
       const weekly = {};
       for (const w of recentWeeks()) { try { weekly[w] = await fetchJson(`${apiBase}/api/weekly/${w}.json`); } catch { weekly[w] = null; } }
       const detailCache = new Map();
@@ -92,9 +123,11 @@ async function loadData() {
   const sample = JSON.parse(await readFile(path.join(root, "data/sample.deals.json"), "utf8"));
   const details = JSON.parse(await readFile(path.join(root, "data/sample.details.json"), "utf8"));
   console.warn("[build] using SAMPLE data");
+  // 샘플 전용: _ended_days_ago → 빌드 시각 기준 ended_at (일반 딜 상세 3일 보존을 날짜와 무관하게 확인하려고)
+  sample.deals = sample.deals.map(({ _ended_days_ago: n, ...d }) => (n == null ? d : { ...d, ended_at: new Date(NOW.getTime() - n * 86400000).toISOString() }));
   const weekly = {};
   for (const w of recentWeeks()) {
-    const ds = sample.deals.filter((d) => d.iso_week === w);
+    const ds = sample.deals.filter((d) => d.iso_week === w && dealKind(d) === "gift"); // 주간 비교는 상품권만
     weekly[w] = ds.length ? { week: w, count: ds.length, brands: Object.groupBy(ds, (d) => d.brand) } : null;
   }
   return {
@@ -139,15 +172,23 @@ const ld = (graph) => raw(JSON.stringify({ "@context": "https://schema.org", "@g
 // ---------- 빌드 시작 ----------
 const data = await loadData();
 await rm(dist, { recursive: true, force: true });
-for (const p of ["assets", "api", "brands", "deal", "weekly", "about", "open-data", "embed", "cards"]) await mkdir(path.join(dist, p), { recursive: true });
+for (const p of ["assets", "api", "brands", "deal", "deals", "weekly", "about", "open-data", "embed", "cards"]) await mkdir(path.join(dist, p), { recursive: true });
 
 const lastUpdated = data.meta.last_updated ?? data.meta.generated_at;
 const staleNow = !lastUpdated || (NOW - new Date(lastUpdated)) / 36e5 > site.guards.staleHours;
 const activeDeals = data.deals.filter((d) => d.status !== "ended");
 const endedDeals = data.deals.filter((d) => d.status === "ended");
 const dealById = new Map(data.deals.map((d) => [d.id, d]));
-const dealEligible = (d) => d.status !== "ended" || !d.ended_at || (NOW - new Date(d.ended_at)) / 86400000 <= site.archive.dealPageDaysAfterEnd;
-const dealHref = (d) => (dealById.has(d.id) && dealEligible(dealById.get(d.id)) ? `/deal/${d.id}/` : `/weekly/${d.iso_week}/`);
+const isProduct = (d) => dealKind(d) === "product";
+const giftDeals = data.deals.filter((d) => !isProduct(d));
+const activeGift = activeDeals.filter((d) => !isProduct(d));
+const activeProduct = activeDeals.filter(isProduct);
+// 상세 페이지 보존: 상품권은 종료 30일(D-07), 일반 딜은 종료 3일(D-20)
+const dealEligible = (d) => (isProduct(d)
+  ? productPageEligible(d, NOW, site.archive.productDealPageDaysAfterEnd ?? 3)
+  : d.status !== "ended" || !d.ended_at || (NOW - new Date(d.ended_at)) / 86400000 <= site.archive.dealPageDaysAfterEnd);
+// 상세가 없는 딜을 가리키는 내부 링크: 상품권은 주차 아카이브, 일반 딜은 일반 핫딜 목록
+const dealHref = (d) => (dealById.has(d.id) && dealEligible(dealById.get(d.id)) ? `/deal/${d.id}/` : isProduct(d) ? listPath("product") : `/weekly/${d.iso_week}/`);
 
 const staleBannerHtml = (await render("partials/stale-banner", { lastUpdated, lastUpdatedLabel: kstLabel(lastUpdated) }))
   .replace('<div role="status" class="', `<div role="status" data-stale-banner class="${staleNow ? "" : "hidden "}`);
@@ -170,11 +211,32 @@ async function emit(relPath, html, { indexable = true, lastmod } = {}) {
 }
 
 // ---------- 딜 카드 ----------
+const sourcesLabel = (d) => (d.sources ?? []).map((s) => sourceName[s] ?? s).join("·") || "커뮤니티";
+/** 추천·댓글 수가 있는 소스(클리앙)의 글이 있을 때만 숫자를 보여 준다. RSS 소스는 수치가 없다 */
+const reactionLabel = (d) => ((d.votes_total ?? 0) || (d.comments_total ?? 0) ? `추천 ${d.votes_total ?? 0} · 댓글 ${d.comments_total ?? 0}` : "");
+const multiChip = (d, tag = "li") => ((d.sources ?? []).length >= 2 ? `<${tag} class="chip bg-accent-400/20 text-accent-600">${(d.sources ?? []).length}곳에 올라옴</${tag}>` : "");
+async function productCard(d) {
+  const [chipClass, label] = statusMeta[d.status] ?? statusMeta.live;
+  const iss = issuers(d);
+  const reaction = reactionLabel(d);
+  return (await render("partials/product-card", {
+    id: d.id, status: d.status, merchant: d.merchant ?? "",
+    merchantLabel: merchantLabel(d, merchantName),
+    productName: d.product_name ?? titleClean(d.title), statusChipClass: chipClass, statusLabel: label,
+    priceLabel: priceLabel(d), shippingLabel: d.shipping ?? "—",
+    cardChip: raw(iss.length ? chip("chip-card", d.card_benefit ?? `${iss.join("·")} 조건`) : ""),
+    limitChip: raw(d.limit_per_person ? chip("chip bg-surface-muted text-ink-700", `한도 ${d.limit_per_person}`) : ""),
+    paymentChip: raw(d.payment_note && !iss.length ? chip("chip bg-surface-muted text-ink-700", d.payment_note) : ""),
+    multiChip: raw(multiChip(d)),
+    reactionLabel: reaction ? `${reaction} · ` : "", sourcesLabel: sourcesLabel(d),
+  })).replaceAll(`href="/deal/${d.id}/"`, `href="${dealHref(d)}"`);
+}
 async function dealCard(d) {
+  if (isProduct(d)) return productCard(d);
   const [chipClass, label] = statusMeta[d.status] ?? statusMeta.live;
   const iss = issuers(d);
   return (await render("partials/deal-card", {
-    id: d.id, brand: d.brand, status: d.status,
+    id: d.id, brand: d.brand, status: d.status, merchant: d.merchant ?? "",
     brandName: d.brand_name ?? brandName[d.brand] ?? d.brand,
     merchantName: merchantName[d.merchant] ?? (d.merchant ?? "판매처 미확인"),
     titleClean: titleClean(d.title), statusChipClass: chipClass, statusLabel: label,
@@ -186,22 +248,66 @@ async function dealCard(d) {
     rateGapChip: raw(d.rate_gap != null ? chip("chip bg-surface-muted text-ink-700", `시세 대비 ${Number(d.rate_gap).toFixed(1)}%p 낮음`) : ""),
     affiliateChip: raw(site.affiliate.enabled && d.is_affiliate ? chip("chip-affiliate", site.affiliate.label) : ""),
     votes: d.votes_total ?? 0, comments: d.comments_total ?? 0,
-    sourcesLabel: (d.sources ?? []).map((s) => sourceName[s] ?? s).join("·") || "커뮤니티",
+    sourcesLabel: sourcesLabel(d),
   })).replaceAll(`href="/deal/${d.id}/"`, `href="${dealHref(d)}"`);
 }
 const cards = async (list) => (await Promise.all(list.map(dealCard))).join("\n");
 const byScore = (a, b) => (b.score ?? 0) - (a.score ?? 0);
+const activeSourceNames = sourcesJson.sources.filter((s) => s.enabled !== false).map((s) => s.name.replace(/\s*쿠폰게시판$/, "")).filter((n, i, a) => a.indexOf(n) === i);
 
 // ---------- 1. 홈 ----------
-await emit("/", await render("index", {
-  ...common,
-  title: `${site.siteName} | ${site.tagline}`,
-  description: "뽐뿌·클리앙·루리웹·퀘이사존의 상품권 핫딜을 모아 카드 조건, 1인 한도, 할인율, 반복 주차까지 정리해 보여주는 상테크 정보 허브.",
-  canonical: `${site.siteUrl}/`, jsonld: ld(orgLd),
-  week: data.meta.week ?? isoWeekKST(), activeCount: activeDeals.length,
-  brandOptions: raw([...new Set(data.deals.map((d) => d.brand))].map((b) => `<option value="${esc(b)}">${esc(brandName[b] ?? b)}</option>`).join("")),
-  dealCards: raw(await cards([...data.deals].sort(byScore))),
-}));
+// 전체 딜이 기본(D-18): 진행 중 딜 점수순 상위 HOME_LIMIT 건 + 진행 중 상품권 딜 전부. 종류 탭은 화면 안에서 걸러 낸다(site.js).
+const HOME_LIMIT = 60;
+{
+  const home = pickHomeDeals(data.deals, HOME_LIMIT);
+  const homeMerchants = Object.entries(Object.groupBy(home.filter((d) => d.merchant), (d) => d.merchant)).sort((a, b) => b[1].length - a[1].length);
+  await emit("/", await render("index", {
+    ...common,
+    title: `${site.siteName} | ${site.tagline}`,
+    description: `${activeSourceNames.join("·")}의 핫딜을 모아 판매처, 가격, 배송비, 카드 조건과 그 쇼핑몰에서 혜택을 주는 카드를 함께 보여 줍니다. 상품권 딜은 할인율과 반복 주차까지 비교합니다.`,
+    canonical: `${site.siteUrl}/`, jsonld: ld(orgLd),
+    week: data.meta.week ?? isoWeekKST(), activeCount: activeDeals.length, homeLimit: HOME_LIMIT,
+    sourceNames: activeSourceNames.join("·"),
+    countAll: home.length, countGift: home.filter((d) => !isProduct(d)).length, countProduct: home.filter(isProduct).length,
+    merchantOptions: raw(homeMerchants.map(([m]) => `<option value="${esc(m)}">${esc(merchantName[m] ?? m)}</option>`).join("")),
+    brandOptions: raw([...new Set(home.filter((d) => !isProduct(d)).map((d) => d.brand))].map((b) => `<option value="${esc(b)}">${esc(brandName[b] ?? b)}</option>`).join("")),
+    dealCards: raw(await cards(home)),
+  }));
+}
+
+// ---------- 1-2. 전체 딜 목록 (/deals/, /deals/gift/, /deals/product/) ----------
+// 진행 중 딜을 최신순으로 50건씩. 2쪽부터는 /deals/2/ 형태이고 사이트맵에 넣지 않는다.
+{
+  const byRecent = (a, b) => new Date(b.first_seen) - new Date(a.first_seen);
+  const KINDS = [
+    { key: "all", label: "전체", list: activeDeals, heading: "전체 딜", lead: "지금 진행 중인 일반 핫딜과 상품권 딜을 최신순으로 봅니다." },
+    { key: "gift", label: "상품권", list: activeGift, heading: "상품권 딜", lead: "지금 진행 중인 상품권 딜입니다. 브랜드별 비교는 상품권 브랜드, 주차별 흐름은 주간 비교에서 볼 수 있습니다." },
+    { key: "product", label: "일반 핫딜", list: activeProduct, heading: "일반 핫딜", lead: "지금 진행 중인 일반 상품 핫딜입니다. 딜 상세에서 그 쇼핑몰의 카드 혜택을 함께 볼 수 있습니다." },
+  ];
+  for (const k of KINDS) {
+    const pages = paginate([...k.list].sort(byRecent), 50);
+    const kindLinks = KINDS.map((x) => (x.key === k.key
+      ? `<span class="tab" aria-current="page" aria-pressed="true">${esc(x.label)} <span class="tab-count">${x.list.length}</span></span>`
+      : `<a href="${listPath(x.key)}" class="tab">${esc(x.label)} <span class="tab-count">${x.list.length}</span></a>`)).join("");
+    for (const [i, list] of pages.entries()) {
+      const page = i + 1;
+      const crumbItems = k.key === "all" ? [{ name: "홈", href: "/" }, { name: "전체 딜" }] : [{ name: "홈", href: "/" }, { name: "전체 딜", href: "/deals/" }, { name: k.label }];
+      await emit(listPath(k.key, page), await render("deals", {
+        ...common,
+        robots: page > 1 ? "noindex,follow" : "index,follow",
+        title: `${k.heading}${page > 1 ? ` ${page}쪽` : ""} | ${site.siteName}`,
+        description: `${k.lead} 진행 중 ${k.list.length}건.`,
+        canonical: `${site.siteUrl}${listPath(k.key, page)}`, jsonld: ld([...orgLd, breadcrumbLd(crumbItems)]), crumbs: crumbs(crumbItems),
+        heading: k.heading, lead: k.lead, total: k.list.length, page, pageCount: pages.length,
+        kindLinks: raw(kindLinks),
+        dealCards: raw(await cards(list)),
+        emptyNote: raw(list.length ? "" : '<p class="mt-6 rounded-md bg-surface-muted p-6 text-center text-sm text-ink-500">지금 진행 중인 딜이 없습니다. 새 딜이 올라오면 곧 반영됩니다.</p>'),
+        prevLink: raw(page > 1 ? link(listPath(k.key, page - 1), "← 이전", "btn-ghost") : ""),
+        nextLink: raw(page < pages.length ? link(listPath(k.key, page + 1), "다음 →", "btn-ghost") : ""),
+      }), { indexable: page === 1 });
+    }
+  }
+}
 
 // ---------- 2. 브랜드 ----------
 const weeklyDeals = Object.values(data.weekly).filter(Boolean).flatMap((w) => Object.values(w.brands ?? {}).flat());
@@ -267,9 +373,63 @@ for (const b of BRANDS) {
 
 // ---------- 3. 딜 상세 ----------
 let dealPages = 0;
-for (const d of data.deals.filter(dealEligible)) {
-  const det = await data.detail(d.id);
+const eligibleDeals = data.deals.filter(dealEligible);
+// 일반 딜이 들어오면서 상세가 수백 건으로 늘어, 상세 API 를 동시에 6개까지 부른다
+const detailList = await mapPool(eligibleDeals, 6, (d) => data.detail(d.id));
+const sourceRowsHtml = (posts) => (posts ?? []).map((p) => `<li class="card p-3"><a href="${esc(p.post_url)}" rel="nofollow noopener ugc" target="_blank" class="font-medium hover:underline">${esc(p.title)}</a><p class="mt-1 text-xs text-ink-500">${esc(sourceName[p.source] ?? p.source)} · ${kstLabel(p.posted_at)} · 추천 ${p.votes ?? 0} · 댓글 ${p.comments ?? 0}</p></li>`).join("") || '<li class="text-ink-500">출처 정보를 불러오지 못했습니다.</li>';
+
+/** 일반 딜 상세 (D-18, D-20): 가격·배송비·판매처, 구매 조건, 판매처 카드 혜택(상품권 칩 없음), 출처 글 */
+async function emitProductDeal(d, det) {
+  const deal = { ...d, ...det.deal };
+  const [chipClass, label] = statusMeta[deal.status] ?? statusMeta.live;
+  const ended = deal.status === "ended";
+  const iss = issuers(deal);
+  const mLabel = merchantLabel(deal, merchantName);
+  const name = deal.product_name ?? titleClean(deal.title);
+  const price = priceLabel(deal);
+  const cond = [
+    ["카드 조건", deal.card_benefit ?? (iss.length ? `${iss.join("·")} 조건` : "카드 조건 없음")],
+    ["결제 조건", deal.payment_note ?? "—"],
+    ["1인 한도", deal.limit_per_person ?? "제목에 표기 없음"],
+    ["배송비", deal.shipping ?? "제목에 표기 없음"],
+    ["종료", ended ? `종료 ${kstDate(deal.ended_at)}` : "미표기"],
+    ["올라온 커뮤니티", sourcesLabel(deal)],
+  ].map(([k, v]) => `<div class="stat"><dt>${esc(k)}</dt><dd class="text-sm font-semibold">${esc(v)}</dd></div>`).join("");
+  const priceRows = (det.prices ?? []).map((p) => `<tr><td class="py-2 pr-3">${esc(p.date)}</td><td class="py-2 pr-3 tabular-nums">${p.sale_price != null ? krw(p.sale_price) : esc(price)}</td><td class="py-2 pr-3 tabular-nums">${p.votes ?? 0}</td><td class="py-2 tabular-nums">${p.comments ?? 0}</td></tr>`).join("") || '<tr><td colspan="4" class="py-3 text-ink-500">아직 기록이 없습니다.</td></tr>';
+  // 옆 칸: 같은 판매처의 다른 진행 중 딜. 판매처를 모르면 점수순 일반 딜
+  const sameMerchant = deal.merchant ? activeProduct.filter((x) => x.merchant === deal.merchant && x.id !== deal.id) : [];
+  const related = (sameMerchant.length ? sameMerchant : activeProduct.filter((x) => x.id !== deal.id)).sort(byScore).slice(0, 4);
+  const relatedRows = related.map((x) => `<li><a href="${dealHref(x)}" class="flex justify-between gap-2 hover:underline"><span class="truncate">${esc(x.product_name ?? titleClean(x.title))}</span><span class="shrink-0 font-semibold text-brand-700">${esc(priceLabel(x))}</span></a></li>`).join("") || '<li class="text-ink-500">다른 진행 중 딜이 없습니다.</li>';
+  const ctaButton = ended
+    ? `<a href="${listPath("product")}" class="btn-primary mt-4 w-full">진행 중인 일반 핫딜 보기</a><button type="button" class="btn mt-2 w-full" aria-disabled="true" disabled>종료된 딜입니다</button>`
+    : `<a href="${esc(deal.deal_url)}" rel="nofollow noopener" target="_blank" class="btn-primary mt-4 w-full">원문 글에서 구매처 확인</a>`;
+  const crumbItems = [{ name: "홈", href: "/" }, { name: "일반 핫딜", href: listPath("product") }, { name: name.slice(0, 40) }];
+  const h1 = `${name} ${price !== "—" ? price : ""} · ${mLabel}`.replace(/\s+/g, " ");
+  const reaction = reactionLabel(deal);
+  await emit(`/deal/${deal.id}/`, await render("product-deal", {
+    ...common,
+    robots: ended ? "noindex,follow" : "index,follow",
+    title: `${h1} | ${site.siteName}`,
+    description: `${name} — ${mLabel}, ${price}${deal.shipping ? `, 배송비 ${deal.shipping}` : ""}${deal.card_benefit ? `, ${deal.card_benefit}` : ""}. ${ended ? "종료된 딜" : "진행 중"}. ${mLabel === "판매처 미확인" ? "출처 커뮤니티 글을 확인하세요." : `${mLabel}에서 혜택을 주는 카드와 출처 커뮤니티 글을 함께 확인하세요.`}`,
+    canonical: `${site.siteUrl}/deal/${deal.id}/`,
+    jsonld: ld([...orgLd, breadcrumbLd(crumbItems), { "@type": "Offer", name, price: deal.sale_price ?? undefined, priceCurrency: deal.sale_price != null ? "KRW" : undefined, availability: ended ? "https://schema.org/SoldOut" : "https://schema.org/InStock", url: `${site.siteUrl}/deal/${deal.id}/`, seller: deal.merchant || deal.merchant_raw ? { "@type": "Organization", name: mLabel } : undefined }]),
+    crumbs: crumbs(crumbItems),
+    merchantLabel: mLabel, statusChipClass: chipClass, statusLabel: label, multiChip: raw(multiChip(deal, "span")),
+    productName: name, firstSeen: deal.first_seen, firstSeenLabel: kstLabel(deal.first_seen), lastSeen: deal.last_seen, lastSeenLabel: kstLabel(deal.last_seen),
+    priceLabel: price, shippingLabel: deal.shipping ?? "—", reactionLabel: reaction || `${(deal.sources ?? []).length || 1}곳에 올라옴`,
+    conditionRows: raw(cond), priceRows: raw(priceRows), sourceRows: raw(sourceRowsHtml(det.posts)), relatedRows: raw(relatedRows),
+    relatedTitle: sameMerchant.length ? `${mLabel} 다른 딜` : "다른 일반 핫딜",
+    cardBenefits: raw(renderDealCardSection({ index: cardIndex, kind: "product", merchant: deal.merchant ?? null, merchantRaw: deal.merchant_raw ?? null, merchantName, issuerName, promoNote: deal.card_benefit ?? null })),
+    ctaCaption: ended ? "이 딜은 종료되었습니다" : "구매는 원문 글의 링크로 이동합니다",
+    ctaButton: raw(ctaButton),
+    ctaNote: ended ? "종료된 일반 핫딜은 3일 뒤 목록에서 내려갑니다." : "판매처 페이지에서 가격·배송비·카드 조건을 반드시 다시 확인하세요. 이 사이트는 판매·중개를 하지 않습니다.",
+  }), { indexable: !ended, lastmod: deal.last_seen });
+}
+
+for (const [i, d] of eligibleDeals.entries()) {
+  const det = detailList[i];
   if (!det) continue;
+  if (isProduct({ ...d, ...det.deal })) { await emitProductDeal(d, det); dealPages++; continue; }
   const deal = { ...d, ...det.deal };
   const [chipClass, label] = statusMeta[deal.status] ?? statusMeta.live;
   const ended = deal.status === "ended";
@@ -285,8 +445,8 @@ for (const d of data.deals.filter(dealEligible)) {
   const priceRows = (det.prices ?? []).map((p) => `<tr><td class="py-2 pr-3">${esc(p.date)}</td><td class="py-2 pr-3 tabular-nums">${krw(p.sale_price)}</td><td class="py-2 pr-3 tabular-nums">${p.buy_rate != null ? pct(p.buy_rate) : "—"}</td><td class="py-2 pr-3 tabular-nums">${p.votes ?? 0}</td><td class="py-2 tabular-nums">${p.comments ?? 0}</td></tr>`).join("") || '<tr><td colspan="5" class="py-3 text-ink-500">아직 하루치 기록만 있습니다.</td></tr>';
   const weekHasPage = (w) => !!data.weekly[w] || w === isoWeekKST();
   const historyRows = (det.history ?? []).map((h) => `<li class="flex items-center justify-between gap-3 py-2"><span>${weekHasPage(h.iso_week) ? link(`/weekly/${h.iso_week}/`, h.iso_week) : esc(h.iso_week)} <span class="text-ink-500">· ${esc(statusMeta[h.status]?.[1] ?? h.status)}</span></span><span class="tabular-nums">${krw(h.sale_price)}</span></li>`).join("") || '<li class="py-2 text-ink-500">이번 주 처음 등장한 조건입니다.</li>';
-  const sourceRows = (det.posts ?? []).map((p) => `<li class="card p-3"><a href="${esc(p.post_url)}" rel="nofollow noopener ugc" target="_blank" class="font-medium hover:underline">${esc(p.title)}</a><p class="mt-1 text-xs text-ink-500">${esc(sourceName[p.source] ?? p.source)} · ${kstLabel(p.posted_at)} · 추천 ${p.votes ?? 0} · 댓글 ${p.comments ?? 0}</p></li>`).join("") || '<li class="text-ink-500">출처 정보를 불러오지 못했습니다.</li>';
-  const related = activeDeals.filter((x) => x.brand === deal.brand && x.id !== deal.id).sort(byScore).slice(0, 4);
+  const sourceRows = sourceRowsHtml(det.posts);
+  const related = activeGift.filter((x) => x.brand === deal.brand && x.id !== deal.id).sort(byScore).slice(0, 4);
   const relatedRows = related.map((x) => `<li><a href="${dealHref(x)}" class="flex justify-between gap-2 hover:underline"><span class="truncate">${esc(merchantName[x.merchant] ?? x.merchant ?? "판매처")} · ${krw(x.sale_price)}</span><span class="shrink-0 font-semibold text-brand-700">${pct(x.discount_rate)}</span></a></li>`).join("") || '<li class="text-ink-500">다른 진행 중 딜이 없습니다.</li>';
   const buyUrl = site.affiliate.enabled && deal.is_affiliate && deal.affiliate_url ? deal.affiliate_url : deal.deal_url;
   const ctaButton = ended
@@ -359,9 +519,9 @@ for (const [i, w] of weeks.entries()) {
   const crumbItems = [{ name: "홈", href: "/" }, { name: "소개·출처 정책" }];
   await emit("/about/", await render("about", {
     ...common, title: `소개와 출처 정책 | ${site.siteName}`,
-    description: `${site.siteName}의 운영 목적, 커뮤니티 핫딜 수집 범위와 제외 요청 절차, 정확성 안내, 제휴 정책을 설명합니다.`,
+    description: `${site.siteName}의 운영 목적, 커뮤니티 핫딜(일반 상품·상품권) 수집 범위와 제외 요청 절차, 정확성 안내, 제휴 정책을 설명합니다.`,
     canonical: `${site.siteUrl}/about/`, jsonld: ld([...orgLd, breadcrumbLd(crumbItems)]), crumbs: crumbs(crumbItems),
-    sourceList: sourcesJson.sources.filter((s) => s.enabled !== false).map((s) => s.name).join(", "),
+    sourceList: sourcesJson.sources.filter((s) => s.enabled !== false).map((s) => s.name + ((s.kinds ?? []).join() === "gift" ? "(상품권 딜만)" : "")).join(", "),
     affiliateStatement: site.affiliate.enabled
       ? "일부 구매 링크는 제휴 링크이며, 구매 시 운영자가 수수료를 받을 수 있습니다. 제휴 링크에는 \"제휴 링크\" 라벨을 표시하고, 제휴 여부가 딜의 순위나 표시 조건에 영향을 주지 않습니다."
       : "현재 제휴 링크와 광고를 사용하지 않습니다. 향후 도입하는 경우 해당 링크에 \"제휴 링크\" 라벨을 표시하고 이 페이지에 먼저 공지합니다.",
@@ -369,10 +529,10 @@ for (const [i, w] of weeks.entries()) {
 }
 {
   const crumbItems = [{ name: "홈", href: "/" }, { name: "데이터 제공" }];
-  const sample = activeDeals[0] ?? data.deals[0];
+  const sample = activeProduct[0] ?? activeDeals[0] ?? data.deals[0];
   await emit("/open-data/", await render("open-data", {
     ...common, title: `데이터 제공 · 임베드 위젯 | ${site.siteName}`,
-    description: "상품권 핫딜 데이터를 JSON 피드와 임베드 위젯으로 제공합니다. 출처 표기 조건과 엔드포인트, 임베드 코드 안내.",
+    description: "일반 핫딜과 상품권 핫딜 데이터를 JSON 피드로, 상품권 딜을 임베드 위젯으로 제공합니다. 출처 표기 조건과 엔드포인트, 임베드 코드 안내.",
     canonical: `${site.siteUrl}/open-data/`, jsonld: ld([...orgLd, breadcrumbLd(crumbItems)]), crumbs: crumbs(crumbItems),
     sampleJson: sample ? JSON.stringify(sample, null, 2) : "{}",
     brandOptions: raw(BRANDS.map((b) => `<option value="${esc(b.slug)}">${esc(b.name)}</option>`).join("")),

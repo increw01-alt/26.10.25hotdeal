@@ -1,0 +1,24 @@
+{{> head}}
+{{> header}}
+{{affiliateTop}}
+{{> breadcrumb}}
+<main id="main" class="container flex-1 py-8 md:py-12">
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+      <h1 class="text-3xl font-extrabold">{{heading}}</h1>
+      <p class="mt-2 text-ink-700">{{lead}}</p>
+    </div>
+    <nav aria-label="딜 종류" class="flex flex-wrap gap-2 text-sm">{{kindLinks}}</nav>
+  </div>
+  <p class="mt-4 text-sm text-ink-500">진행 중 {{total}}건 · 최신순 · {{page}} / {{pageCount}}쪽. 가격·조건은 커뮤니티 글 제목에서 자동 추출한 값이니 판매처에서 다시 확인하세요.</p>
+  <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {{dealCards}}
+  </div>
+  {{emptyNote}}
+  <nav aria-label="쪽 이동" class="mt-8 flex items-center justify-between gap-3 text-sm">
+    <span>{{prevLink}}</span>
+    <span class="text-ink-500">{{page}} / {{pageCount}}</span>
+    <span>{{nextLink}}</span>
+  </nav>
+</main>
+{{> footer}}

@@ -3,7 +3,7 @@
   "siteName": "핫딜 허브",
   "siteUrl": "https://hotdeal-hub.pages.dev",
   "apiBase": "https://hotdeal-hub-worker.increw01.workers.dev",
-  "tagline": "상품권 상테크 핫딜을 한눈에",
+  "tagline": "커뮤니티 핫딜과 카드 혜택을 한눈에",
   "locale": "ko_KR",
   "timezone": "Asia/Seoul",
   "operator": { "name": "핫딜 허브 운영팀", "email": "contact@example.com" },

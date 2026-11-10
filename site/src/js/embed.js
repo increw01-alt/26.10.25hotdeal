@@ -69,7 +69,7 @@
     var brand = el.getAttribute("data-brand");
     var api = el.getAttribute("data-api") || DEFAULT_API;
     var urls = [];
-    if (api && !/__API/.test(api) && !/REPLACE_/.test(api)) urls.push(brand ? api + "/api/brands/" + encodeURIComponent(brand) + ".json?limit=20" : api + "/api/deals.json?limit=20");
+    if (api && !/__API/.test(api) && !/REPLACE_/.test(api)) urls.push(brand ? api + "/api/brands/" + encodeURIComponent(brand) + ".json?limit=20" : api + "/api/deals.json?limit=20&kind=gift");
     var st = el.getAttribute("data-static"); if (st) urls.push(/^https?:/.test(st) ? st : (origin || "") + st);
     if (!urls.length) { el.innerHTML = ""; return; }
     var c = theme(el);
@@ -82,7 +82,9 @@
         .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
         .then(function (data) {
           clearTimeout(t);
-          if (brand) data.deals = (data.deals || []).filter(function (d) { return d.brand === brand; });
+          // 위젯은 상품권 전용이다. 정적 사본에는 일반 핫딜(kind=product)도 들어 있어 걸러 낸다(kind 없는 옛 응답은 상품권).
+          data.deals = (data.deals || []).filter(function (d) { return d.kind !== "product"; });
+          if (brand) data.deals = data.deals.filter(function (d) { return d.brand === brand; });
           render(el, data);
         })
         .catch(function () { clearTimeout(t); tryNext(i + 1); });

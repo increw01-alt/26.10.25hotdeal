@@ -10,6 +10,9 @@ export const CARD_NOTICE = "카드 혜택은 카드사 공식 안내를 기준�
 const isApplies = (e) => e.benefit.giftcard === "applies";
 const byPriority = (a, b) => Number(!isApplies(a)) - Number(!isApplies(b)) || (b.benefit.rate ?? 0) - (a.benefit.rate ?? 0) || a.card.name.localeCompare(b.card.name, "ko");
 
+/** 일반 딜용 정렬: 혜택률 높은 순(금액형은 0으로 본다), 그다음 카드명 */
+const byRate = (a, b) => (b.benefit.rate ?? 0) - (a.benefit.rate ?? 0) || a.card.name.localeCompare(b.card.name, "ko");
+
 /**
  * @param {object} doc shared/cards.json
  * @param {{ now?: Date }} opts
@@ -52,9 +55,9 @@ const giftChip = (g) => g === "applies"
 const staleChip = (stale) => (stale ? ' <span class="chip bg-amber-50 text-amber-800">재확인 필요</span>' : "");
 const sourceLink = (card) => `<a href="${esc(card.official_url)}" rel="nofollow noopener" target="_blank" class="underline">공식 안내</a>`;
 
-function cardRow({ card, benefit, stale }, issuerName) {
+function cardRow({ card, benefit, stale }, issuerName, { showGift = true } = {}) {
   return `<li class="card p-4 text-sm">`
-    + `<div class="flex flex-wrap items-center gap-2"><span class="font-semibold">${esc(card.name)}</span><span class="text-ink-500">${esc(issuerName[card.issuer] ?? card.issuer)} · ${typeLabel(card)}</span>${giftChip(benefit.giftcard)}${staleChip(stale)}</div>`
+    + `<div class="flex flex-wrap items-center gap-2"><span class="font-semibold">${esc(card.name)}</span><span class="text-ink-500">${esc(issuerName[card.issuer] ?? card.issuer)} · ${typeLabel(card)}</span>${showGift ? giftChip(benefit.giftcard) : ""}${staleChip(stale)}</div>`
     + `<p class="mt-1 font-semibold text-brand-700">${esc(benefitSummary(benefit))}</p>`
     + (benefit.note ? `<p class="mt-1 text-ink-700">${esc(benefit.note)}</p>` : "")
     + `<p class="mt-1 text-xs text-ink-500">${esc(prevMonthLabel(card.prev_month_min))}${card.annual_fee ? ` · 연회비 ${esc(card.annual_fee)}` : ""} · 확인 ${esc(card.verified_at)} · ${sourceLink(card)}</p>`
@@ -65,15 +68,27 @@ function cardRow({ card, benefit, stale }, issuerName) {
  * 딜 상세의 "{판매처} 카드 혜택" 섹션.
  * promoNote: 딜 제목에서 뽑은 판매처 카드 행사 조건(deal.card_benefit). 있으면 카드 자체 혜택과 별개임을 한 줄로 알린다
  * (행사 조건은 "구매 조건"에 이미 있으므로 여기서 반복하지 않고 관계만 설명).
+ * kind: "gift"(기본, 1단계 동작 그대로) | "product"(일반 딜, D-20).
+ *   일반 딜은 그 판매처의 verified 카드를 전부 본문에 보여 주고 상품권 칩을 붙이지 않는다
+ *   (일반 결제에는 "상품권 제외"가 해당 없는 정보라, 붙이면 혜택이 없는 것처럼 읽힌다).
+ * merchantRaw: 일반 딜에서 판매처가 사전에 없을 때의 원문 표기.
  */
-export function renderDealCardSection({ index, merchant, merchantName, issuerName, promoNote = null }) {
+export function renderDealCardSection({ index, merchant, merchantName, issuerName, promoNote = null, kind = "gift", merchantRaw = null }) {
   const mName = merchant ? (merchantName[merchant] ?? merchant) : null;
   const promo = promoNote
     ? `<p class="mt-3 text-sm text-ink-700">이 딜의 "${esc(promoNote)}"은 판매처 행사 조건(위 구매 조건)이며, 아래의 카드 자체 상시 혜택과는 별개입니다.</p>`
     : "";
   const head = `<section class="mt-8" aria-labelledby="h-cards"><h2 id="h-cards" class="text-lg font-bold">${mName ? `${esc(mName)} 카드 혜택` : "카드 혜택"}</h2>${promo}`;
   const foot = `<p class="mt-3 text-xs text-ink-500">${esc(CARD_NOTICE)}</p></section>`;
+  if (!merchant && kind === "product" && merchantRaw) return `${head}<p class="mt-3 text-sm text-ink-500">이 판매처(${esc(merchantRaw)})는 아직 카드 혜택 표에 없습니다.</p>${foot}`;
   if (!merchant) return `${head}<p class="mt-3 text-sm text-ink-500">판매처가 확인되지 않아 카드 혜택을 연결하지 못했습니다.</p>${foot}`;
+
+  if (kind === "product") {
+    const list = entriesForMerchant(index, merchant).sort(byRate);
+    if (!list.length) return `${head}<p class="mt-3 text-sm text-ink-700">확인된 카드 중 ${esc(mName)}에서 혜택을 주는 카드가 아직 없습니다.</p>${foot}`;
+    return `${head}<p class="mt-3 text-sm text-ink-700">${esc(mName)}에서 일반 상품을 결제할 때 혜택을 주는 카드입니다. 전월 실적과 월 한도를 함께 확인하세요.</p>`
+      + `<ul class="mt-3 space-y-2">${list.map((e) => cardRow(e, issuerName, { showGift: false })).join("")}</ul>${foot}`;
+  }
 
   const entries = entriesForMerchant(index, merchant);
   const applies = entries.filter(isApplies);

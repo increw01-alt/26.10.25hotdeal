@@ -45,3 +45,36 @@ test("cards 페이지는 카드 있는 판매처 섹션만, 순서 유지", () =
   assert.doesNotMatch(html, /id="m-naver"/); assert.ok(html.indexOf('id="m-gmarket"') < html.indexOf('id="m-11st"'));
   assert.match(html, /상품권 구매 시/);
 });
+
+// ---------- 일반 딜(kind: product)의 카드 섹션 (D-20) ----------
+test("일반 딜: 도입 문장, 접힌 목록 없음, 상품권 칩 없음, 혜택률 높은 순", () => {
+  const html = renderDealCardSection({ index, merchant: "11st", kind: "product", ...names });
+  assert.match(html, /11번가 카드 혜택/);
+  assert.match(html, /11번가에서 일반 상품을 결제할 때 혜택을 주는 카드입니다\. 전월 실적과 월 한도를 함께 확인하세요\./);
+  assert.doesNotMatch(html, /<details/);
+  assert.doesNotMatch(html, /상품권 적용|상품권 제외|상품권 적용 미확인/);
+  assert.ok(html.indexOf("A 11번가 카드") < html.indexOf("B 체크"));
+  assert.match(html, /재확인 필요/); assert.doesNotMatch(html, /C 미확인/);
+  assert.match(html, /이 사이트는 카드를 모집하지 않습니다\./);
+});
+test("일반 딜: 카드가 없는 판매처", () => {
+  const html = renderDealCardSection({ index, merchant: "naver", kind: "product", ...names });
+  assert.match(html, /확인된 카드 중 네이버에서 혜택을 주는 카드가 아직 없습니다\./);
+  assert.doesNotMatch(html, /상품권/);
+});
+test("일반 딜: 사전에 없는 판매처는 원문 표기로 안내(이스케이프)", () => {
+  const html = renderDealCardSection({ index, merchant: null, merchantRaw: "하프<클럽>", kind: "product", ...names });
+  assert.match(html, /이 판매처\(하프&lt;클럽&gt;\)는 아직 카드 혜택 표에 없습니다\./);
+  assert.match(html, /<h2[^>]*>카드 혜택<\/h2>/);
+});
+test("일반 딜: 판매처를 전혀 모르면 1단계 문구", () => {
+  assert.match(renderDealCardSection({ index, merchant: null, kind: "product", ...names }), /판매처가 확인되지 않아 카드 혜택을 연결하지 못했습니다\./);
+});
+test("일반 딜: 카드 행사 조건이 있으면 별개임을 알린다", () => {
+  const html = renderDealCardSection({ index, merchant: "11st", kind: "product", promoNote: "신한카드 7% 즉시할인", ...names });
+  assert.match(html, /판매처 행사 조건/); assert.ok(html.indexOf("판매처 행사 조건") < html.indexOf("일반 상품을 결제할 때"));
+});
+test("kind를 주지 않으면 상품권 딜 출력과 같다", () => {
+  assert.equal(renderDealCardSection({ index, merchant: "11st", kind: "gift", ...names }), renderDealCardSection({ index, merchant: "11st", ...names }));
+  assert.match(renderDealCardSection({ index, merchant: "11st", ...names }), /<details/);
+});

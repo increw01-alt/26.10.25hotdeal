@@ -73,7 +73,7 @@ Write-Host "database_id = $DbId"
 WriteToml ([regex]::Replace((ReadToml), 'database_id = "[^"]*"', "database_id = `"$DbId`""))
 
 Step "4/8 D1 스키마 적용(멱등)"
-Run "D1 스키마" { npx wrangler d1 execute $DbName --remote --file=./schema.sql | Out-Null }
+Run "D1 스키마" { npx wrangler d1 migrations apply $DbName --remote | Out-Null }
 Write-Host "✔ schema applied"
 
 Step "5/8 시크릿 (텔레그램 알림, 비워두면 건너뜀)"

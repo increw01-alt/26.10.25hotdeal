@@ -1,4 +1,5 @@
 -- 핫딜 허브 D1 스키마 (D-01, D-02, D-12)
+-- 참고용 전체 스냅샷. 실제 적용은 migrations/*.sql 을 wrangler d1 migrations apply 로 한다 (D-21).
 -- 적용: npm run db:migrate:local  /  npm run db:migrate:remote
 
 CREATE TABLE IF NOT EXISTS deals (
@@ -34,6 +35,15 @@ CREATE TABLE IF NOT EXISTS deals (
   first_seen    TEXT NOT NULL,               -- ISO8601 UTC
   last_seen     TEXT NOT NULL,
   ended_at      TEXT,
+  -- 일반 핫딜 (D-18, D-19). 상품권 딜은 kind=gift 이고 아래 열은 NULL
+  kind          TEXT NOT NULL DEFAULT 'gift', -- gift | product
+  product_name  TEXT,                        -- 일반 딜의 상품명
+  merchant_raw  TEXT,                        -- 판매처 사전에 없을 때의 원문 표기
+  price_kind    TEXT,                        -- exact | descriptive
+  price_text    TEXT,                        -- descriptive일 때의 원문 표기
+  shipping      TEXT,                        -- 정규화한 배송비 표기
+  product_category TEXT,                     -- 이후 단계용(지금은 항상 NULL)
+  title_tokens  TEXT,                        -- 묶기용 정규화 토큰
   parse_method  TEXT NOT NULL DEFAULT 'regex', -- regex | llm | manual
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
@@ -42,6 +52,8 @@ CREATE INDEX IF NOT EXISTS idx_deals_status_score ON deals(status, score DESC);
 CREATE INDEX IF NOT EXISTS idx_deals_brand_week ON deals(brand, iso_week);
 CREATE INDEX IF NOT EXISTS idx_deals_week ON deals(iso_week);
 CREATE INDEX IF NOT EXISTS idx_deals_last_seen ON deals(last_seen);
+CREATE INDEX IF NOT EXISTS idx_deals_kind_status_score ON deals(kind, status, score DESC);
+CREATE INDEX IF NOT EXISTS idx_deals_kind_week_merchant_price ON deals(kind, iso_week, merchant, sale_price);
 
 -- 딜 ↔ 커뮤니티 글 (여러 커뮤니티 글이 한 딜로 병합)
 CREATE TABLE IF NOT EXISTS deal_posts (
@@ -57,6 +69,7 @@ CREATE TABLE IF NOT EXISTS deal_posts (
   comments    INTEGER NOT NULL DEFAULT 0,
   first_seen  TEXT NOT NULL,
   last_seen   TEXT NOT NULL,
+  closed      INTEGER NOT NULL DEFAULT 0,    -- 글 제목에 품절·종료 표시가 붙음(일반 딜)
   UNIQUE(source, post_id)
 );
 CREATE INDEX IF NOT EXISTS idx_posts_deal ON deal_posts(deal_id);

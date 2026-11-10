@@ -1,6 +1,7 @@
-# 핫딜 허브 (상품권 상테크 정보 허브)
+# 핫딜 허브 (커뮤니티 핫딜 + 쇼핑몰별 카드 혜택)
 
-커뮤니티(뽐뿌·클리앙·루리웹·퀘이사존)의 상품권 핫딜을 1분 단위로 모아 **카드 조건, 1인 한도, 할인율, 반복 주차, 시세 대비 할인 폭**을 정리해 보여주는 정보 사이트.
+커뮤니티(뽐뿌·클리앙·루리웹)의 핫딜을 1분 단위로 모아 **판매처, 가격, 배송비, 카드 조건**과 **그 쇼핑몰에서 혜택을 주는 카드**를 함께 보여주는 정보 사이트.
+딜은 일반 상품 핫딜(`kind = product`)과 상품권 딜(`kind = gift`) 두 가지이며(D-18), 상품권 딜은 1인 한도, 할인율, 반복 주차, 시세 대비 할인 폭까지 비교한다.
 외부 사이트가 가져다 쓸 수 있는 **공개 피드 API**도 함께 제공한다.
 
 - 기획 검토: [`docs/REVIEW-plan-v1.md`](docs/REVIEW-plan-v1.md)
@@ -14,7 +15,7 @@
 ├─ docs/                      기획 검토·결정 기록
 ├─ shared/                    단일 출처 데이터 (worker·site 공용)
 │  ├─ sources.json            커뮤니티 소스 정의(RSS/HTML, 확인일)
-│  ├─ brands.json             상품권 브랜드·판매처·카드사 별칭
+│  ├─ brands.json             상품권 브랜드·판매처(product_only = 일반 딜 전용)·카드사 별칭
 │  ├─ design-tokens.json      색상·서체·간격 토큰
 │  ├─ cards.json              쇼핑몰별 카드 혜택(카드사 공식 페이지로 확인한 카드만, D-17)
 │  └─ site.config.json        사이트명·URL·제휴(off)·가드 기준값
@@ -24,11 +25,15 @@
 │  └─ research/               카드 비교 사이트 크롤에서 후보 추출 (결과는 저장소 밖)
 ├─ worker/                    Cloudflare Workers (수집 Cron 1분 + 공개 API) + D1
 │  ├─ wrangler.toml           바인딩·vars·cron
-│  ├─ schema.sql              D1 스키마
+│  ├─ migrations/             D1 마이그레이션 (D-21, wrangler d1 migrations apply)
+│  ├─ schema.sql              D1 스키마 전체 스냅샷(참고용)
 │  ├─ src/
 │  │  ├─ index.ts             fetch(API) / scheduled(Cron) 진입점
 │  │  ├─ collect.ts           수집 파이프라인(가드·서킷브레이커·점수)
-│  │  ├─ parse.ts             제목 → 브랜드/판매처/액면가/판매가/카드/한도
+│  │  ├─ route.ts             글 한 건의 갈래 판정(상품권·일반·닫힘·큐)
+│  │  ├─ parse.ts             상품권 제목 → 브랜드/판매처/액면가/판매가/카드/한도
+│  │  ├─ parse-product.ts     일반 딜 제목 → 판매처/상품명/가격/배송비
+│  │  ├─ group.ts             같은 상품 묶기(토큰 Jaccard, D-19)
 │  │  ├─ dedupe.ts            ISO 주차 버킷 dedupe_key
 │  │  ├─ api.ts               /api/deals.json 등 공개 피드
 │  │  ├─ fetchers/            rss.ts, quasarzone.ts, http.ts(EUC-KR 대응)
@@ -37,7 +42,8 @@
 ├─ site/                      정적 사이트 (Tailwind CLI 빌드 → Cloudflare Pages)
 │  ├─ scripts/build.mjs       API → HTML 빌드 (API 실패 시 빌드 중단)
 │  ├─ scripts/lib/card-benefits.mjs  딜 상세 카드 섹션·/cards/ 페이지·api/cards.json 렌더링 (test/)
-│  ├─ templates/              index.html, cards.html + partials(헤더·푸터·딜 카드·배너·제휴고지)
+│  ├─ scripts/lib/deals.mjs   홈 선택·쪽 나누기·일반 딜 보존 판정 (test/)
+│  ├─ templates/              index.html, deals.html, deal.html(상품권), product-deal.html(일반), cards.html + partials
 │  ├─ src/styles/input.css    Tailwind 진입 CSS
 │  ├─ src/js/site.js          메뉴·필터·갱신지연 배너
 │  └─ data/sample.*.json      샘플 데이터(개발용)
@@ -65,7 +71,7 @@ cd worker
 npm install
 npm test                      # 파서·dedupe·RSS 테스트
 npm run typecheck
-npm run db:migrate:local      # 로컬 D1에 스키마 적용
+npm run db:migrate:local      # 로컬 D1에 마이그레이션 적용 (worker/migrations)
 npx wrangler dev --test-scheduled --var DEV_INGEST:true
 #   http://localhost:8787/health
 #   http://localhost:8787/api/deals.json

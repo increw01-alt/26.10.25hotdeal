@@ -15,6 +15,26 @@
 
 브랜치: `claude/upbeat-noether-60p86o` (아직 `main` 없음)
 
+## 2026-11-10 일반 핫딜 수집 확장 (2단계)
+
+스펙 `docs/superpowers/specs/2026-11-10-general-hotdeals-design.md`, 계획 `docs/superpowers/plans/2026-11-10-general-hotdeals.md`. 결정은 D-16(마감), D-18 ~ D-21.
+
+**한 일**
+- **스키마**: `worker/migrations/`로 전환(D-21). `deals`에 `kind`, `product_name`, `merchant_raw`, `price_kind`, `price_text`, `shipping`, `product_category`, `title_tokens`, `deal_posts`에 `closed` 추가. 로컬 D1에서 빈 DB와 기존 스키마 DB 두 경우 모두 적용 확인(두 번째 실행은 "No migrations to apply").
+- **판매처 사전**: 13곳에서 41곳으로. 새 28곳은 `product_only`(상품권 파서는 기존 13곳만 본다).
+- **수집**: `route.ts`가 글 한 건의 갈래(상품권 / 큐 / 일반 / 다시 봄 / 닫힘 / 건너뜀)를 정하고, `parse-product.ts`가 일반 딜 제목을 파싱, `group.ts`가 묶기(Jaccard 0.5), `collect.ts`가 저장한다. 일반 딜 수명 12/24시간, 점수에 등장 커뮤니티 수 항, 점수는 0.002 이상 달라졌을 때만 다시 쓴다.
+- **API**: `kind`·`merchant`·`offset`·`has_more`, `limit` 상한 500, 응답에 일반 딜 필드와 `sources`, `status.json`에 `active_by_kind`. 기본값이 전체로 바뀜.
+- **사이트**: 홈 종류 탭(전체/상품권/일반 핫딜)과 판매처 필터, `/deals/`·`/deals/gift/`·`/deals/product/` 목록(50건/쪽), 일반 딜 카드와 상세(판매처 카드 혜택 섹션, 상품권 칩 없음), 헤더 메뉴, 소개·데이터 제공 문구. 임베드 위젯·주간 비교·브랜드 허브는 상품권 전용 유지.
+- **검증**: worker 테스트 33건(기존, 무수정) + 신규, site 테스트 9건(기존) + 신규, scripts 14건, `check-cards.mjs`, 타입검사, 샘플 빌드. 로컬 Worker에 개발용 주입(`/__dev/ingest`)으로 상품권 1건·일반 4건이 맞는 종류로 저장되고, 뽐뿌·클리앙의 같은 상품 글이 한 딜로 묶이며, 한 글만 [종료]면 딜이 남고 둘 다 닫히면 종료, 표시가 사라지면 되살아나는 것을 확인. 로컬 Worker를 상대로 API 모드 빌드도 확인.
+
+**main 반영 뒤 확인할 것**
+1. Actions의 Deploy Worker에서 "D1 마이그레이션 적용" 단계가 0001·0002를 적용했는지(두 번째 배포부터는 "No migrations to apply").
+2. `Worker주소/api/status.json`의 `active_by_kind.product`가 올라가는지, `/api/deals.json?kind=product`에 딜이 보이는지.
+3. `/__admin/queue`에 `product low confidence` 건이 과하게 쌓이지 않는지. 쌓이면 `parse-product.ts`의 신뢰도 가중치나 제목 관례를 손본다.
+4. 운영 2주 뒤(2026-11-24 무렵) 묶기 기준 0.5와 점수 가중치를 실제 데이터로 재검토(D-10, D-19).
+
+**이후 단계 메모**: 뽐뿌·루리웹 목록 HTML 수집(추천 수), 가격 변동 추적, 카테고리 분류, 판매처 허브 페이지, 주간 카드 행사, 내 카드 저장, 웹앱(3단계).
+
 ## 2026-10-28 아침 점검 (클라우드 세션에서 확인)
 
 - **GitHub `schedule`이 살아났다.** Deploy Site 매시 재빌드가 10-27 15:18 UTC부터 자동 실행 중(15:18, 20:39, 00:28 …), Relay Collect도 schedule 이벤트로 실행됨.
@@ -132,5 +152,4 @@
 - 사이트 이름, 도메인, 운영자 표기 (3단계에서 필요)
 - 푸터 통신판매업 신고번호 표기 여부
 - 쿠팡 파트너스 (사이트 완성 후 검토, 현재 off)
-- hotdeal.zip 구조 분석 (로컬 PC 등 네트워크 허용 환경에서)
 - 커뮤니티 RSS 실존 확인 — 초기화 스크립트 실행 후 `api/status.json`의 `sources`에서 `consecutive_fail`이 올라가는 소스가 있으면 주소 수정 필요

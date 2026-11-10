@@ -1,4 +1,4 @@
-import { BRANDS, MERCHANTS, CARD_ISSUERS } from "./config";
+import { BRANDS, GIFT_MERCHANTS, CARD_ISSUERS } from "./config";
 import type { ParsedDeal, RawPost } from "./types";
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
@@ -6,7 +6,7 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 /** 가장 긴 alias가 먼저 매칭되도록 정렬 */
 const brandIndex = BRANDS.flatMap((b) => b.aliases.map((a) => ({ alias: norm(a), b })))
   .sort((x, y) => y.alias.length - x.alias.length);
-const merchantIndex = MERCHANTS.flatMap((m) => m.aliases.map((a) => ({ alias: norm(a), m })))
+const merchantIndex = GIFT_MERCHANTS.flatMap((m) => m.aliases.map((a) => ({ alias: norm(a), m })))
   .sort((x, y) => y.alias.length - x.alias.length);
 const cardIndex = CARD_ISSUERS.flatMap((c) => c.aliases.map((a) => ({ alias: norm(a), c })))
   .sort((x, y) => y.alias.length - x.alias.length);

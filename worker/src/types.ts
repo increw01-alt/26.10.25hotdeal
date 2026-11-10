@@ -64,6 +64,7 @@ export interface SourceDef {
   notes?: string;
   ua?: "bot" | "feed";
   headers?: Record<string, string>;
+  kinds?: Array<"gift" | "product">; // 이 소스에서 받는 딜 종류(기본 둘 다)
   relay_only?: boolean; // Worker IP 차단 → 중계로만 수집
 }
 

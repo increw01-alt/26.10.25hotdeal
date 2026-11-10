@@ -16,6 +16,7 @@
     },
     {
       "slug": "ppomppu_coupon",
+      "kinds": ["gift"],
       "name": "뽐뿌 쿠폰게시판",
       "tier": 1,
       "type": "rss",

@@ -9,9 +9,10 @@ import type { RawPost } from "./types";
 
 /**
  * 공개 피드 API (D-04). 외부 사이트(모두의시세·협회 등)가 가져다 쓰는 엔드포인트.
- *  GET /api/deals.json?limit=50&status=live&brand=cultureland&category=gift
- *  GET /api/brands/{slug}.json
- *  GET /api/weekly/{YYYY-Www}.json
+ *  GET /api/deals.json?limit=50&offset=0&kind=all|gift|product&status=live&brand=cultureland&merchant=coupang&category=gift
+ *      kind 기본값은 all(상품권 + 일반 핫딜, D-18). limit 상한 500, 응답의 has_more 가 true 면 offset 을 올려 이어 받는다.
+ *  GET /api/brands/{slug}.json      (상품권 브랜드)
+ *  GET /api/weekly/{YYYY-Www}.json  (상품권만)
  *  GET /api/deals/{id}.json
  *  GET /api/status.json   (가드·소스 상태, 사이트 배너용)
  *  GET /health
@@ -64,33 +65,53 @@ export async function handleApi(req: Request, env: Env): Promise<Response> {
 
 const DEAL_COLUMNS = `id, iso_week, brand, merchant, category, title, face_value, sale_price, discount_rate,
   card_issuers, card_benefit, limit_per_person, payment_note, valid_until, buy_rate, rate_gap, rate_source,
-  deal_url, is_affiliate, affiliate_url, status, score, votes_total, comments_total, first_seen, last_seen, ended_at`;
+  deal_url, is_affiliate, affiliate_url, status, score, votes_total, comments_total, first_seen, last_seen, ended_at,
+  kind, product_name, merchant_raw, price_kind, price_text, shipping, product_category,
+  (SELECT GROUP_CONCAT(DISTINCT p.source) FROM deal_posts p WHERE p.deal_id = deals.id) AS sources`;
 
-function rowToDeal(r: Record<string, unknown>) {
+export const MAX_LIMIT = 500;
+
+export function rowToDeal(r: Record<string, unknown>) {
+  const kind = r.kind === "product" ? "product" : "gift"; // 옛 행·옛 사본에는 kind 가 없다 → 상품권
   const b = BRANDS.find((x) => x.slug === r.brand);
+  const merchantName = MERCHANTS.find((m) => m.slug === r.merchant)?.name;
   return {
     ...r,
-    brand_name: b?.name ?? r.brand,
-    merchant_name: MERCHANTS.find((m) => m.slug === r.merchant)?.name ?? r.merchant ?? null,
+    kind,
+    brand_name: kind === "product" ? null : (b?.name ?? r.brand),
+    // 일반 딜은 사전에 없는 판매처를 merchant_raw 로 따로 준다
+    merchant_name: kind === "product" ? (merchantName ?? null) : (merchantName ?? r.merchant ?? null),
     card_issuers: safeJson(r.card_issuers as string, []),
+    sources: typeof r.sources === "string" && r.sources ? r.sources.split(",") : [],
     is_affiliate: !!r.is_affiliate,
     // 제휴 미사용(D-05) 시 affiliate_url은 노출하지 않음
     affiliate_url: r.is_affiliate ? r.affiliate_url : undefined,
   };
 }
 
-async function dealsPayload(env: Env, q: URLSearchParams) {
-  const limit = Math.min(200, Math.max(1, Number(q.get("limit") ?? 50) || 50));
+/** /api/deals.json 의 쿼리 → SQL. has_more 를 알려고 limit 보다 한 건 더 읽는다 */
+export function buildDealsQuery(q: URLSearchParams): { sql: string; binds: unknown[]; limit: number; offset: number } {
+  const limit = Math.min(MAX_LIMIT, Math.max(1, Number(q.get("limit") ?? 50) || 50));
+  const offset = Math.max(0, Math.floor(Number(q.get("offset") ?? 0)) || 0);
   const status = q.get("status") ?? "active"; // active = live+ending
+  const kind = q.get("kind");
   const where: string[] = []; const binds: unknown[] = [];
   if (status === "active") where.push("status != 'ended'");
   else if (["live", "ending", "ended"].includes(status)) { where.push("status = ?"); binds.push(status); }
+  if (kind === "gift" || kind === "product") { where.push("kind = ?"); binds.push(kind); }
   if (q.get("brand")) { where.push("brand = ?"); binds.push(q.get("brand")); }
+  if (q.get("merchant")) { where.push("merchant = ?"); binds.push(q.get("merchant")); }
   if (q.get("category")) { where.push("category = ?"); binds.push(q.get("category")); }
   if (q.get("week")) { where.push("iso_week = ?"); binds.push(q.get("week")); }
   const sort = q.get("sort") === "recent" ? "first_seen DESC" : q.get("sort") === "discount" ? "discount_rate DESC NULLS LAST" : "score DESC";
-  const sql = `SELECT ${DEAL_COLUMNS} FROM deals ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${sort} LIMIT ?`;
-  const rows = (await env.DB.prepare(sql).bind(...binds, limit).all<Record<string, unknown>>()).results;
+  const sql = `SELECT ${DEAL_COLUMNS} FROM deals ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${sort}, id LIMIT ? OFFSET ?`;
+  return { sql, binds: [...binds, limit + 1, offset], limit, offset };
+}
+
+async function dealsPayload(env: Env, q: URLSearchParams) {
+  const { sql, binds, limit, offset } = buildDealsQuery(q);
+  const all = (await env.DB.prepare(sql).bind(...binds).all<Record<string, unknown>>()).results;
+  const rows = all.slice(0, limit);
   const last = await env.DB.prepare("SELECT ran_at FROM run_log ORDER BY id DESC LIMIT 1").first<{ ran_at: string }>();
   return {
     source: { name: env.SITE_NAME, url: env.SITE_URL, terms: `${env.SITE_URL}/open-data/` },
@@ -98,12 +119,15 @@ async function dealsPayload(env: Env, q: URLSearchParams) {
     last_updated: last?.ran_at ?? null,
     week: isoWeekKST(),
     count: rows.length,
+    offset,
+    has_more: all.length > limit,
     deals: rows.map(rowToDeal),
   };
 }
 
 async function weeklyPayload(env: Env, week: string) {
-  const rows = (await env.DB.prepare(`SELECT ${DEAL_COLUMNS} FROM deals WHERE iso_week = ? ORDER BY brand, discount_rate DESC`).bind(week).all<Record<string, unknown>>()).results;
+  // 주간 비교는 상품권 기능이다(일반 딜은 넣지 않는다)
+  const rows = (await env.DB.prepare(`SELECT ${DEAL_COLUMNS} FROM deals WHERE iso_week = ? AND kind != 'product' ORDER BY brand, discount_rate DESC`).bind(week).all<Record<string, unknown>>()).results;
   const byBrand: Record<string, unknown[]> = {};
   for (const r of rows) (byBrand[r.brand as string] ??= []).push(rowToDeal(r));
   return { source: { name: env.SITE_NAME, url: env.SITE_URL }, week, count: rows.length, brands: byBrand };
@@ -115,8 +139,9 @@ async function dealDetail(env: Env, id: string) {
   const posts = (await env.DB.prepare("SELECT source, post_url, title, posted_at, votes, comments FROM deal_posts WHERE deal_id = ? ORDER BY first_seen").bind(id).all()).results;
   const prices = (await env.DB.prepare("SELECT date, sale_price, buy_rate, votes, comments FROM deal_prices WHERE deal_id = ? ORDER BY date").bind(id).all()).results;
   // 같은 조건(주차 제외)의 과거 딜: 반복 주차 표시용 (D-02)
+  // 일반 딜은 과거 반복을 계산하지 않는다(상품권 기능).
   const baseKey = String(deal.dedupe_key).split("|").slice(0, 4).join("|") + "|";
-  const history = (await env.DB.prepare("SELECT id, iso_week, sale_price, status, first_seen FROM deals WHERE dedupe_key LIKE ? AND id != ? ORDER BY iso_week DESC LIMIT 8").bind(baseKey + "%", id).all()).results;
+  const history = deal.kind === "product" ? [] : (await env.DB.prepare("SELECT id, iso_week, sale_price, status, first_seen FROM deals WHERE dedupe_key LIKE ? AND id != ? ORDER BY iso_week DESC LIMIT 8").bind(baseKey + "%", id).all()).results;
   const { dedupe_key: _k, ...rest } = deal;
   return { source: { name: env.SITE_NAME, url: env.SITE_URL }, deal: rowToDeal(rest), posts, prices, history, repeat_weeks: history.length + 1 };
 }
@@ -132,9 +157,12 @@ async function statusPayload(env: Env) {
   });
   const staleHours = num(env, "GUARD_STALE_HOURS", 2);
   const ageHours = last ? (Date.now() - new Date(last.ran_at).getTime()) / 3600000 : null;
+  const kindRows = (await env.DB.prepare("SELECT kind, COUNT(*) AS c FROM deals WHERE status != 'ended' GROUP BY kind").all<{ kind: string; c: number }>()).results;
+  const countOf = (k: string) => kindRows.find((r) => r.kind === k)?.c ?? 0;
   return {
     last_updated: last?.ran_at ?? null,
     active_deals: last?.active_deals ?? 0,
+    active_by_kind: { gift: countOf("gift"), product: countOf("product") },
     stale: ageHours === null || ageHours > staleHours,
     guard_tripped: !!last?.guard_tripped,
     sources,

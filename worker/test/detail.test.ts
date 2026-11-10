@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractShopUrl, cleanShopUrl, extractOgImage, shouldFetchImage, sanitizeDetailResults, detailPageUrl } from "../src/detail";
+import { extractShopUrl, cleanShopUrl, extractOgImage, shouldFetchImage, sanitizeDetailResults, detailPageUrl, pageOutcome, isPrivateAddress } from "../src/detail";
 
 // HTML 조각은 모두 지어낸 것이다(구조만 실제와 같다).
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
@@ -128,6 +128,52 @@ describe("detailPageUrl", () => {
     expect(detailPageUrl("ruliweb", "https://bbs.ruliweb.com/market/board/1020/read/9")).toBe("https://bbs.ruliweb.com/market/board/1020/read/9");
     expect(detailPageUrl("fmkorea", "https://www.fmkorea.com/1")).toBeNull();
   });
+});
+
+// ---------- 코드 리뷰 반영 ----------
+describe("리뷰: 추출 견고성", () => {
+  it("data-href 가 아니라 href 를 읽는다", () => {
+    const html = `<div class="source_url"><a data-href="https://tracker.test/x" href="https://web.ruliweb.com/link.php?ol=${encodeURIComponent("https://shop.test/real")}">x</a></div>`;
+    expect(extractShopUrl("ruliweb", html)).toBe("https://shop.test/real");
+  });
+  it("작은따옴표 속성도 읽는다", () => {
+    const html = `<article class='post'><p class='attached'>구매링크 <a href='https://shop.test/q'>x</a></p></article>`;
+    expect(extractShopUrl("clien", html)).toBe("https://shop.test/q");
+  });
+  it("닫히지 않은 태그가 가득한 큰 페이지에서도 금방 끝난다", () => {
+    const junk = "<a ".repeat(100_000);
+    const t = Date.now();
+    expect(extractShopUrl("ppomppu", junk)).toBeNull();
+    expect(extractShopUrl("clien", `<article class="post">${junk}`)).toBeNull();
+    expect(extractOgImage("<meta ".repeat(60_000), "https://shop.test/p")).toBeNull();
+    expect(extractShopUrl("ppomppu", junk + ">")).toBeNull(); // 닫는 꺾쇠가 맨 끝에만 있어도
+    expect(extractOgImage("<meta ".repeat(60_000) + ">", "https://shop.test/p")).toBeNull();
+    expect(Date.now() - t).toBeLessThan(1500);
+  });
+  it("og:image: name 속성, 빈 첫 태그 뒤의 값, 파일 이름만 보고 공통 이미지를 거른다", () => {
+    expect(extractOgImage(`<meta name="og:image" content="https://img.shop.test/a.jpg">`, "https://shop.test/p")).toBe("https://img.shop.test/a.jpg");
+    expect(extractOgImage(`<meta property="og:image" content=""><meta property="og:image" content="https://img.shop.test/b.jpg">`, "https://shop.test/p")).toBe("https://img.shop.test/b.jpg");
+    expect(extractOgImage(`<meta property="og:image" content="https://img.shop.test/shared/product/123.jpg">`, "https://shop.test/p")).toBe("https://img.shop.test/shared/product/123.jpg");
+    expect(extractOgImage(`<meta property="og:image" content="https://img.shop.test/upload/default/goods/1.jpg">`, "https://shop.test/p")).toBe("https://img.shop.test/upload/default/goods/1.jpg");
+  });
+});
+
+describe("리뷰: pageOutcome (시도 횟수를 올릴지)", () => {
+  it("정상 응답과 삭제된 글만 시도로 센다. 일시 장애는 다음에 다시", () => {
+    expect(pageOutcome(200)).toBe("ok");
+    expect(pageOutcome(404)).toBe("gone"); expect(pageOutcome(410)).toBe("gone");
+    for (const s of [429, 500, 502, 503, 403, 301, null]) expect(pageOutcome(s)).toBe("retry");
+  });
+});
+
+describe("리뷰: isPrivateAddress", () => {
+  it("사설·루프백·링크로컬 주소", () => {
+    for (const ip of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.0.1", "169.254.169.254", "0.0.0.0", "100.64.0.1", "::1", "::", "fe80::1", "fd00::1", "fc00::1", "::ffff:127.0.0.1", "::ffff:10.0.0.1"]) expect(isPrivateAddress(ip)).toBe(true);
+  });
+  it("공인 주소", () => {
+    for (const ip of ["8.8.8.8", "172.32.0.1", "172.15.0.1", "211.234.1.1", "2606:4700::1111", "::ffff:8.8.8.8"]) expect(isPrivateAddress(ip)).toBe(false);
+  });
+  it("주소가 아니면 막는다", () => expect(isPrivateAddress("nope")).toBe(true));
 });
 
 describe("sanitizeDetailResults", () => {

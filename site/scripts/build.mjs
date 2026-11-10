@@ -454,7 +454,7 @@ for (const [i, d] of eligibleDeals.entries()) {
   const buyUrl = site.affiliate.enabled && deal.is_affiliate && deal.affiliate_url ? deal.affiliate_url : deal.deal_url;
   const ctaButton = ended
     ? `<a href="/brands/${esc(deal.brand)}/" class="btn-primary mt-4 w-full">같은 브랜드 진행 중 딜 보기</a><button type="button" class="btn mt-2 w-full" aria-disabled="true" disabled>종료된 딜입니다</button>`
-    : buyButtonsHtml({ shopUrl: deal.shop_url, postUrl: buyUrl, rel: `nofollow noopener${site.affiliate.enabled && deal.is_affiliate ? " sponsored" : ""}` });
+    : buyButtonsHtml({ shopUrl: buyUrl === deal.deal_url ? deal.shop_url : null /* 제휴 링크를 쓰는 딜은 그 링크가 주 버튼 */, postUrl: buyUrl, rel: `nofollow noopener${site.affiliate.enabled && deal.is_affiliate ? " sponsored" : ""}` });
   const crumbItems = [{ name: "홈", href: "/" }, { name: brandName[deal.brand] ?? deal.brand, href: `/brands/${deal.brand}/` }, { name: titleClean(deal.title).slice(0, 40) }];
   const h1 = `${brandName[deal.brand] ?? deal.brand} ${deal.face_value ? `${faceLabel(deal.face_value)}권 ` : ""}${krw(deal.sale_price)}${deal.discount_rate != null ? ` (${pct(deal.discount_rate)} 할인)` : ""} · ${merchantName[deal.merchant] ?? deal.merchant ?? "커뮤니티 핫딜"}`;
   await emit(`/deal/${deal.id}/`, await render("deal", {

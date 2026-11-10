@@ -70,13 +70,26 @@ export function isRewardEventTitle(title: string): boolean {
   return /적립|캐시백|페이백|추첨|응모/.test(title) && !/상품권|기프트|충전|권\s*구매|교환권|관람권/.test(title);
 }
 
-/** 제목의 카드사와 카드 혜택 요약. 상품권·일반 딜 공용 */
-export function extractCardInfo(title: string): { issuers: string[]; cardBenefit: string | null } {
+/**
+ * 제목에 상품권 브랜드의 분명한 이름(짧고 흔한 alias 제외)이 들어 있는지.
+ * 사전 필터(looksLikeGiftDeal)가 놓친 상품권 글("해피머니 5만원")을 일반 딜로 받지 않으려고 route.ts 가 쓴다.
+ */
+export function hasStrongGiftBrand(title: string): boolean {
+  const n = norm(title);
+  return brandIndex.some((x) => !WEAK_ALIASES.has(x.alias) && n.includes(x.alias));
+}
+
+/**
+ * 제목의 카드사와 카드 혜택 요약. 상품권·일반 딜 공용.
+ * strict: "카드"·"뱅크"가 붙은 alias 만 인정한다. 일반 딜 제목에서는 "삼성", "현대", "우리", "하나"가
+ * 상품 브랜드나 보통 낱말이라 문맥만으로 카드사로 보면 오탐이 난다. 기본값(false)은 상품권 파서의 1단계 동작.
+ */
+export function extractCardInfo(title: string, opts: { strict?: boolean } = {}): { issuers: string[]; cardBenefit: string | null } {
   const n = norm(title);
   const pct = extractPercent(title);
   const cardIssuers = [...new Set(cardIndex.filter((x) => n.includes(x.alias)).map((x) => x.c.slug))];
   // "카드" 단어 없이 "신한", "현대"만 나오는 경우 오탐 방지: 카드/할인/결제 문맥이 있을 때만 인정
-  const cardContext = /카드|할인|결제|청구|즉시/.test(title);
+  const cardContext = !opts.strict && /카드|할인|결제|청구|즉시/.test(title);
   const issuers = cardContext ? cardIssuers : cardIssuers.filter((slug) =>
     CARD_ISSUERS.find((c) => c.slug === slug)!.aliases.some((a) => /카드|뱅크/.test(a) && n.includes(norm(a))));
   const cardBenefit = issuers.length

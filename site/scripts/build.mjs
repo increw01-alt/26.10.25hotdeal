@@ -15,6 +15,7 @@ import { readFile, writeFile, mkdir, cp, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { esc, buildCardIndex, renderDealCardSection, renderCardsPageSections, publicCards, CARD_NOTICE } from "./lib/card-benefits.mjs";
+import { raw, renderValue, jsonLdText } from "./lib/template.mjs";
 import { dealKind, pickHomeDeals, paginate, listPath, productPageEligible, priceLabel, merchantLabel } from "./lib/deals.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -73,12 +74,12 @@ async function fetchJson(url) {
 const PAGE_LIMIT = 500; // API limit 상한
 /** /api/deals.json 을 offset 으로 끝까지 받는다. 첫 응답의 메타(last_updated 등)를 유지한다 */
 async function fetchAllDeals(qs) {
-  let meta = null; const deals = [];
+  let meta = null; const deals = []; const ids = new Set();
   for (let offset = 0; offset < 20000; offset += PAGE_LIMIT) {
-    const page = await fetchJson(`${apiBase}/api/deals.json?${qs}&limit=${PAGE_LIMIT}&offset=${offset}`);
+    const page = await fetchJson(`${apiBase}/api/deals.json?${qs}&sort=recent&limit=${PAGE_LIMIT}&offset=${offset}`); // 점수순은 받는 사이 순서가 바뀐다 → 최신순으로 받는다
     if (!Array.isArray(page.deals)) throw new Error("API payload malformed");
     meta ??= page;
-    deals.push(...page.deals);
+    for (const d of page.deals) if (!ids.has(d.id)) { ids.add(d.id); deals.push(d); }
     if (!page.has_more || page.deals.length === 0) break;
   }
   return { ...meta, count: deals.length, deals };
@@ -143,15 +144,14 @@ async function tpl(name) {
   return tplCache.get(name);
 }
 // esc 는 lib/card-benefits.mjs 에서 import (템플릿·카드 섹션이 같은 이스케이프를 쓴다)
-const raw = (s) => `raw:${s}`;
+// raw()·renderValue()·jsonLdText() 는 lib/template.mjs (글 제목 등 밖에서 온 문자열은 모두 이스케이프)
 async function render(name, vars) {
   let html = await tpl(name);
-  for (const m of [...html.matchAll(/\{\{>\s*([\w-]+)\s*\}\}/g)]) html = html.replace(m[0], await render(`partials/${m[1]}`, vars));
-  return html.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => {
-    const v = vars[k];
-    if (v === undefined || v === null) return "";
-    return typeof v === "string" && v.startsWith("raw:") ? v.slice(4) : esc(v);
-  });
+  for (const m of [...html.matchAll(/\{\{>\s*([\w-]+)\s*\}\}/g)]) {
+    const part = await render(`partials/${m[1]}`, vars);
+    html = html.replace(m[0], () => part); // 함수로 넘겨 제목 속 "$&" 같은 치환 패턴이 해석되지 않게 한다
+  }
+  return html.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => renderValue(vars[k]));
 }
 
 // ---------- 포맷 ----------
@@ -167,7 +167,7 @@ const issuers = (d) => (d.card_issuers ?? []).map((s) => issuerName[s] ?? s);
 const link = (href, text, cls = "text-brand-700 hover:underline") => `<a href="${esc(href)}" class="${cls}">${esc(text)}</a>`;
 const crumbs = (items) => raw(items.map((c, i) => `<li class="flex items-center gap-1.5">${i ? '<span aria-hidden="true">/</span>' : ""}${c.href ? link(c.href, c.name, "hover:text-brand-700") : `<span aria-current="page" class="text-ink-700">${esc(c.name)}</span>`}</li>`).join(""));
 const breadcrumbLd = (items) => ({ "@type": "BreadcrumbList", itemListElement: items.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: `${site.siteUrl}${c.href ?? ""}` })) });
-const ld = (graph) => raw(JSON.stringify({ "@context": "https://schema.org", "@graph": graph }));
+const ld = (graph) => raw(jsonLdText(graph));
 
 // ---------- 빌드 시작 ----------
 const data = await loadData();

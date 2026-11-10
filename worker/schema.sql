@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS deal_posts (
 );
 CREATE INDEX IF NOT EXISTS idx_posts_deal ON deal_posts(deal_id);
 CREATE INDEX IF NOT EXISTS idx_posts_source_seen ON deal_posts(source, first_seen);
+CREATE INDEX IF NOT EXISTS idx_posts_first_seen ON deal_posts(first_seen);
 
 -- 일별 가격·시세 이력 (일 단위 비교, D-02)
 CREATE TABLE IF NOT EXISTS deal_prices (

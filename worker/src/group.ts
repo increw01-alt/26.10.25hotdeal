@@ -45,8 +45,12 @@ export function merchantKey(slug: string | null, raw: string | null): string {
   return n ? `raw:${n}` : "-";
 }
 
-/** 일반 딜의 dedupe 키: product|판매처키|가격|토큰 해시|주차. 토큰이 완전히 같을 때만 같은 키가 된다 */
-export async function productDedupeKey(p: { merchantKey: string; price: number | null; tokens: string[] }, isoWeek: string): Promise<string> {
-  const hash = (await sha1([...p.tokens].sort().join(" "))).slice(0, 12);
+/**
+ * 일반 딜의 dedupe 키: product|판매처키|가격|토큰 해시|주차. 토큰이 완전히 같을 때만 같은 키가 된다.
+ * 토큰이 하나도 없는 제목(불용어뿐)은 서로 다른 상품일 수 있으므로 unique(글 식별자)를 해시해 글마다 다른 키를 준다.
+ */
+export async function productDedupeKey(p: { merchantKey: string; price: number | null; tokens: string[]; unique?: string }, isoWeek: string): Promise<string> {
+  const basis = p.tokens.length ? [...p.tokens].sort().join(" ") : `#${p.unique ?? ""}`;
+  const hash = (await sha1(basis)).slice(0, 12);
   return ["product", p.merchantKey, p.price ?? "-", hash, isoWeek].join("|");
 }

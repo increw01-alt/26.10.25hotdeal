@@ -91,12 +91,13 @@ export function rowToDeal(r: Record<string, unknown>) {
 
 /** /api/deals.json 의 쿼리 → SQL. has_more 를 알려고 limit 보다 한 건 더 읽는다 */
 export function buildDealsQuery(q: URLSearchParams): { sql: string; binds: unknown[]; limit: number; offset: number } {
-  const limit = Math.min(MAX_LIMIT, Math.max(1, Number(q.get("limit") ?? 50) || 50));
+  const limit = Math.min(MAX_LIMIT, Math.max(1, Math.floor(Number(q.get("limit") ?? 50)) || 50));
   const offset = Math.max(0, Math.floor(Number(q.get("offset") ?? 0)) || 0);
   const status = q.get("status") ?? "active"; // active = live+ending
   const kind = q.get("kind");
   const where: string[] = []; const binds: unknown[] = [];
-  if (status === "active") where.push("status != 'ended'");
+  // "!= 'ended'" 가 아니라 IN 으로 써야 (status, score)·(kind, status, score) 인덱스를 탄다. 종료 딜은 계속 쌓인다.
+  if (status === "active") where.push("status IN ('live','ending')");
   else if (["live", "ending", "ended"].includes(status)) { where.push("status = ?"); binds.push(status); }
   if (kind === "gift" || kind === "product") { where.push("kind = ?"); binds.push(kind); }
   if (q.get("brand")) { where.push("brand = ?"); binds.push(q.get("brand")); }
@@ -157,7 +158,7 @@ async function statusPayload(env: Env) {
   });
   const staleHours = num(env, "GUARD_STALE_HOURS", 2);
   const ageHours = last ? (Date.now() - new Date(last.ran_at).getTime()) / 3600000 : null;
-  const kindRows = (await env.DB.prepare("SELECT kind, COUNT(*) AS c FROM deals WHERE status != 'ended' GROUP BY kind").all<{ kind: string; c: number }>()).results;
+  const kindRows = (await env.DB.prepare("SELECT kind, COUNT(*) AS c FROM deals WHERE status IN ('live','ending') GROUP BY kind").all<{ kind: string; c: number }>()).results;
   const countOf = (k: string) => kindRows.find((r) => r.kind === k)?.c ?? 0;
   return {
     last_updated: last?.ran_at ?? null,

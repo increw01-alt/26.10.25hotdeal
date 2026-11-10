@@ -6,7 +6,7 @@ const q = (s: string) => buildDealsQuery(new URLSearchParams(s));
 describe("buildDealsQuery", () => {
   it("기본값: 전체 종류, 진행 중, 점수순, 50건", () => {
     const r = q("");
-    expect(r.sql).toContain("status != 'ended'");
+    expect(r.sql).toContain("status IN ('live','ending')");
     expect(r.sql).not.toContain("kind = ?");
     expect(r.sql).toContain("ORDER BY score DESC");
     expect(r.limit).toBe(50);

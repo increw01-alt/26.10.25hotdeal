@@ -1,5 +1,5 @@
 import { MERCHANTS } from "./config";
-import { norm, parseKRW, extractCardInfo, extractLimit, extractPaymentNote, extractPercent } from "./parse";
+import { norm, parseKRW, extractCardInfo, extractLimit, extractPaymentNote } from "./parse";
 import { tokenize } from "./group";
 import type { ParsedProduct, RawPost } from "./types";
 
@@ -109,9 +109,11 @@ export function parseProductTitle(post: RawPost): ParsedProduct | null {
   if (exactIdx >= 0) {
     salePrice = pieces[exactIdx].amount!.value; priceKind = "exact"; used.add(exactIdx);
   } else if (!sawAmount) {
-    const inBody = [...body.matchAll(/(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*[만천]|\d{3,8})\s*원|\d{1,3}(?:,\d{3})+/g)];
+    // 본문에서는 "원"이 붙은 금액만 가격으로 본다("20,000mAh" 같은 숫자 제외).
+    // 뒤에 이상·할인·쿠폰·적립이 오면 가격이 아니라 조건이다("3만원 이상 5천원 할인").
+    const inBody = [...body.matchAll(/(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*[만천]|\d{3,8})\s*원(?!\s*(?:이상|이하|할인|쿠폰|적립|당|씩|대))/g)];
     const last = inBody[inBody.length - 1];
-    const v = last ? parseKRW(last[1] ?? last[0]) : null;
+    const v = last ? parseKRW(last[1]) : null;
     if (last && v !== null && inRange(v)) {
       salePrice = v; priceKind = "exact";
       body = body.slice(0, last.index) + " " + body.slice(last.index! + last[0].length);
@@ -146,7 +148,9 @@ export function parseProductTitle(post: RawPost): ParsedProduct | null {
   if (productName.length < 2) return null;
   const tokens = tokenize(productName);
 
-  const { issuers, cardBenefit } = extractCardInfo(title);
+  const { issuers, cardBenefit } = extractCardInfo(title, { strict: true });
+  // 상품명 속 퍼센트("알콜 70%", "순면 100%")는 할인율이 아니다. 할인·쿠폰·세일이 붙은 퍼센트만 쓴다.
+  const pct = title.match(/(\d{1,2}(?:\.\d)?)\s*%\s*(?:즉시|청구|추가|중복|카드)?\s*(?:할인|쿠폰|세일|off)/i);
 
   let confidence = 0.3;
   if (merchant || merchantRaw) confidence += 0.2;
@@ -159,7 +163,7 @@ export function parseProductTitle(post: RawPost): ParsedProduct | null {
   return {
     merchant, merchantRaw, productName, tokens,
     salePrice, priceKind, priceText, shipping,
-    discountRate: extractPercent(title),
+    discountRate: pct ? parseFloat(pct[1]) : null,
     cardIssuers: issuers, cardBenefit,
     limitPerPerson: extractLimit(title),
     paymentNote: extractPaymentNote(title),

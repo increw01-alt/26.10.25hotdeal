@@ -1,6 +1,6 @@
 import type { ParsedDeal, ParsedProduct, RawPost } from "./types";
 import { sourceKinds } from "./config";
-import { looksLikeGiftDeal, parseTitle, isRewardEventTitle } from "./parse";
+import { looksLikeGiftDeal, parseTitle, isRewardEventTitle, hasStrongGiftBrand } from "./parse";
 import { parseProductTitle, isClosedTitle } from "./parse-product";
 
 /** 신뢰도가 이 값 미만이면 딜로 확정하지 않고 parse_queue 로 보낸다 (D-15) */
@@ -32,6 +32,9 @@ export function routePost(post: RawPost, linked: "gift" | "product" | null): Rou
     // 상품권 브랜드가 분명한데 가격 정보가 모자란 글은 지금처럼 큐로.
     // 짧은 alias로만 잡힌 글("스타벅스 텀블러")은 일반 상품일 가능성이 높아 아래로 넘긴다.
     if (gift && !gift.weakOnly) return { action: "queue", reason: `low confidence ${gift.confidence}` };
+  } else if (hasStrongGiftBrand(post.title)) {
+    // 사전 필터가 놓친 상품권 글("해피머니 5만원"): 1단계에서도 건너뛰던 글이다. 일반 딜로 저장하면 안 된다.
+    return { action: "skip" };
   }
 
   if (linked === "gift") return { action: "skip" };

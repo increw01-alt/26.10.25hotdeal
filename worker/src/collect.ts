@@ -53,7 +53,7 @@ export async function runCollection(env: Env): Promise<RunSummary> {
 
   await finalizeRun(env, medians, now);
 
-  summary.activeDeals = (await env.DB.prepare("SELECT COUNT(*) AS c FROM deals WHERE status != 'ended'").first<{ c: number }>())?.c ?? 0;
+  summary.activeDeals = (await env.DB.prepare("SELECT COUNT(*) AS c FROM deals WHERE status IN ('live','ending')").first<{ c: number }>())?.c ?? 0;
 
   const guard = await checkActiveRatio(env, summary.activeDeals);
   summary.guardTripped = !guard.ok;
@@ -78,11 +78,14 @@ export interface IngestCtx {
 export async function ingestPosts(env: Env, posts: RawPost[], ctx: IngestCtx): Promise<{ parsed: number; newDeals: number; queued: number; skipped: number; products: number }> {
   const out = { parsed: 0, newDeals: 0, queued: 0, skipped: 0, products: 0 };
   const closedDeals = new Set<string>(); // 이번 실행에서 글이 닫힌 일반 딜
+  // 글마다 조회하지 않고 한 번에 묶어 읽는다(실행당 D1 쿼리 수를 줄이려고)
+  const links = new Map<string, PostLink>();
+  for (const s of linkLookupStatements(posts)) {
+    for (const r of (await env.DB.prepare(s.sql).bind(...s.binds).all<PostLink & { source: string; post_id: string }>()).results) links.set(`${r.source}:${r.post_id}`, r);
+  }
   for (const post of posts) {
     if (ctx.blocked.has(`${post.source}:${post.postId}`)) { out.skipped++; continue; }
-    const link = await env.DB.prepare(
-      "SELECT p.deal_id, p.closed, p.votes, p.comments, p.last_seen, d.kind, d.status FROM deal_posts p JOIN deals d ON d.id = p.deal_id WHERE p.source = ? AND p.post_id = ?",
-    ).bind(post.source, post.postId).first<PostLink>();
+    const link = links.get(`${post.source}:${post.postId}`) ?? null;
     const route = routePost(post, link ? (link.kind === "product" ? "product" : "gift") : null);
     switch (route.action) {
       case "gift":
@@ -115,6 +118,21 @@ export async function ingestPosts(env: Env, posts: RawPost[], ctx: IngestCtx): P
 }
 
 interface PostLink { deal_id: string; closed: number; votes: number; comments: number; last_seen: string; kind: string; status: string }
+
+const LINK_LOOKUP_CHUNK = 40; // (source, post_id) 2개씩 바인드 → 문장당 80개 (D1 한도 100개)
+/** 글 목록이 이미 어느 딜에 연결돼 있는지 묻는 조회문들. 40건씩 묶는다 */
+export function linkLookupStatements(posts: Array<{ source: string; postId: string }>): Array<{ sql: string; binds: string[] }> {
+  const out: Array<{ sql: string; binds: string[] }> = [];
+  for (let i = 0; i < posts.length; i += LINK_LOOKUP_CHUNK) {
+    const chunk = posts.slice(i, i + LINK_LOOKUP_CHUNK);
+    out.push({
+      sql: `SELECT p.source, p.post_id, p.deal_id, p.closed, p.votes, p.comments, p.last_seen, d.kind, d.status
+            FROM deal_posts p JOIN deals d ON d.id = p.deal_id WHERE ${chunk.map(() => "(p.source = ? AND p.post_id = ?)").join(" OR ")}`,
+      binds: chunk.flatMap((p) => [p.source, p.postId]),
+    });
+  }
+  return out;
+}
 
 export async function buildIngestCtx(env: Env, now = new Date()): Promise<IngestCtx> {
   const blocked = new Set(
@@ -209,12 +227,12 @@ async function upsertProductDeal(env: Env, post: RawPost, p: ParsedProduct, ctx:
   if (p.priceKind === "exact" && p.salePrice !== null && mKey !== "-") {
     const rows = (await env.DB.prepare(
       `SELECT id, merchant, merchant_raw, title_tokens FROM deals
-       WHERE kind = 'product' AND iso_week = ? AND sale_price = ? AND status != 'ended' AND ${p.merchant ? "merchant = ?" : "merchant IS NULL"}
+       WHERE kind = 'product' AND iso_week = ? AND sale_price = ? AND status IN ('live','ending') AND ${p.merchant ? "merchant = ?" : "merchant IS NULL"}
        ORDER BY first_seen LIMIT 50`,
     ).bind(...(p.merchant ? [ctx.week, p.salePrice, p.merchant] : [ctx.week, p.salePrice])).all<{ id: string; merchant: string | null; merchant_raw: string | null; title_tokens: string | null }>()).results;
     id = pickGroup(p.tokens, rows.filter((r) => merchantKey(r.merchant, r.merchant_raw) === mKey).map((r) => ({ id: r.id, tokens: (r.title_tokens ?? "").split(" ").filter(Boolean) })));
   }
-  const key = await productDedupeKey({ merchantKey: mKey, price: p.salePrice, tokens: p.tokens }, ctx.week);
+  const key = await productDedupeKey({ merchantKey: mKey, price: p.salePrice, tokens: p.tokens, unique: `${post.source}:${post.postId}` }, ctx.week);
   const grouped = id !== null;
   id ??= await dealId(key);
   const existing = grouped ? { id } : await env.DB.prepare("SELECT id FROM deals WHERE id = ?").bind(id).first<{ id: string }>();
@@ -236,6 +254,7 @@ async function upsertProductDeal(env: Env, post: RawPost, p: ParsedProduct, ctx:
           card_issuers, card_benefit, limit_per_person, payment_note, deal_url,
           status, first_seen, last_seen, parse_method, updated_at)
         VALUES (?,?,?,'product','-',?,?,'product',?,?,?, ?,?,?,?,?, ?,?,?,?,?, 'live',?,?,'regex',?)
+        ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen, status = 'live', ended_at = NULL, updated_at = excluded.updated_at
       `).bind(id, key, ctx.week, p.merchant, p.merchantRaw, post.title, p.productName, p.tokens.join(" "),
         p.salePrice, p.priceKind, p.priceText, p.shipping, p.discountRate,
         JSON.stringify(p.cardIssuers), p.cardBenefit, p.limitPerPerson, p.paymentNote, post.url,
@@ -285,7 +304,7 @@ async function endFullyClosedDeals(env: Env, dealIds: string[], nowIso: string):
     const ids = dealIds.slice(i, i + 50);
     await env.DB.prepare(
       `UPDATE deals SET status = 'ended', ended_at = ?, updated_at = ?
-       WHERE kind = 'product' AND status != 'ended' AND id IN (${ids.map(() => "?").join(",")})
+       WHERE kind = 'product' AND status IN ('live','ending') AND id IN (${ids.map(() => "?").join(",")})
          AND NOT EXISTS (SELECT 1 FROM deal_posts p WHERE p.deal_id = deals.id AND p.closed = 0)`,
     ).bind(nowIso, nowIso, ...ids).run();
   }
@@ -294,9 +313,9 @@ async function endFullyClosedDeals(env: Env, dealIds: string[], nowIso: string):
 async function updateStatuses(env: Env, nowIso: string): Promise<void> {
   const before = (hours: number) => new Date(Date.now() - hours * 3600000).toISOString();
   await env.DB.batch([
-    env.DB.prepare("UPDATE deals SET status='ended', ended_at=?, updated_at=? WHERE kind != 'product' AND status != 'ended' AND last_seen < ?").bind(nowIso, nowIso, before(ENDED_AFTER_HOURS)),
-    env.DB.prepare("UPDATE deals SET status='ending', updated_at=? WHERE kind != 'product' AND status = 'live' AND last_seen < ?").bind(nowIso, before(ENDING_AFTER_HOURS)),
-    env.DB.prepare("UPDATE deals SET status='ended', ended_at=?, updated_at=? WHERE kind = 'product' AND status != 'ended' AND last_seen < ?").bind(nowIso, nowIso, before(PRODUCT_ENDED_AFTER_HOURS)),
+    env.DB.prepare("UPDATE deals SET status='ended', ended_at=?, updated_at=? WHERE kind = 'gift' AND status IN ('live','ending') AND last_seen < ?").bind(nowIso, nowIso, before(ENDED_AFTER_HOURS)),
+    env.DB.prepare("UPDATE deals SET status='ending', updated_at=? WHERE kind = 'gift' AND status = 'live' AND last_seen < ?").bind(nowIso, before(ENDING_AFTER_HOURS)),
+    env.DB.prepare("UPDATE deals SET status='ended', ended_at=?, updated_at=? WHERE kind = 'product' AND status IN ('live','ending') AND last_seen < ?").bind(nowIso, nowIso, before(PRODUCT_ENDED_AFTER_HOURS)),
     env.DB.prepare("UPDATE deals SET status='ending', updated_at=? WHERE kind = 'product' AND status = 'live' AND last_seen < ?").bind(nowIso, before(PRODUCT_ENDING_AFTER_HOURS)),
   ]);
 }
@@ -308,7 +327,7 @@ async function refreshScores(env: Env, medians: Record<string, { votes: number; 
       COALESCE(SUM(p.votes),0) AS votes, COALESCE(SUM(p.comments),0) AS comments,
       GROUP_CONCAT(DISTINCT p.source) AS sources
     FROM deals d LEFT JOIN deal_posts p ON p.deal_id = d.id
-    WHERE d.status != 'ended' GROUP BY d.id
+    WHERE d.status IN ('live','ending') GROUP BY d.id
   `).all<{ id: string; discount_rate: number | null; first_seen: string; score: number; votes_total: number; comments_total: number; votes: number; comments: number; sources: string | null }>()).results;
   if (rows.length === 0) return;
   const stmts: D1PreparedStatement[] = [];
@@ -344,7 +363,7 @@ export async function recordRelayRun(env: Env, r: { counts: Record<string, numbe
   }
   for (const [slug, n] of Object.entries(r.counts)) await recordSourceOk(env, slug, n);
   for (const [slug, msg] of Object.entries(r.errors)) await recordSourceFail(env, slug, `relay: ${msg}`);
-  const activeDeals = (await env.DB.prepare("SELECT COUNT(*) AS c FROM deals WHERE status != 'ended'").first<{ c: number }>())?.c ?? 0;
+  const activeDeals = (await env.DB.prepare("SELECT COUNT(*) AS c FROM deals WHERE status IN ('live','ending')").first<{ c: number }>())?.c ?? 0;
   await env.DB.prepare(
     "INSERT INTO run_log (ran_at, active_deals, new_deals, fetched, parsed, guard_tripped, note) VALUES (?,?,?,?,?,0,?)",
   ).bind(new Date().toISOString(), activeDeals, r.newDeals, r.received, r.parsed, `relay ${Object.keys(r.counts).join(",")}${Object.keys(r.errors).length ? " errors: " + Object.entries(r.errors).map(([k, v]) => `${k}: ${v}`).join(" | ").slice(0, 600) : ""}`).run();

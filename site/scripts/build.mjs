@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { esc, buildCardIndex, renderDealCardSection, renderCardsPageSections, publicCards, CARD_NOTICE } from "./lib/card-benefits.mjs";
 import { raw, renderValue, jsonLdText } from "./lib/template.mjs";
 import { dealKind, pickHomeDeals, paginate, listPath, productPageEligible, priceLabel, merchantLabel } from "./lib/deals.mjs";
+import { thumbHtml, shopLinkHtml, buyButtonsHtml } from "./lib/shop.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
@@ -222,6 +223,7 @@ async function productCard(d) {
   return (await render("partials/product-card", {
     id: d.id, status: d.status, merchant: d.merchant ?? "",
     merchantLabel: merchantLabel(d, merchantName),
+    thumb: raw(thumbHtml(d, merchantLabel(d, merchantName))), shopLink: raw(shopLinkHtml(d)),
     productName: d.product_name ?? titleClean(d.title), statusChipClass: chipClass, statusLabel: label,
     priceLabel: priceLabel(d), shippingLabel: d.shipping ?? "—",
     cardChip: raw(iss.length ? chip("chip-card", d.card_benefit ?? `${iss.join("·")} 조건`) : ""),
@@ -239,6 +241,7 @@ async function dealCard(d) {
     id: d.id, brand: d.brand, status: d.status, merchant: d.merchant ?? "",
     brandName: d.brand_name ?? brandName[d.brand] ?? d.brand,
     merchantName: merchantName[d.merchant] ?? (d.merchant ?? "판매처 미확인"),
+    thumb: raw(thumbHtml(d, d.brand_name ?? brandName[d.brand] ?? d.brand)), shopLink: raw(shopLinkHtml(d)),
     titleClean: titleClean(d.title), statusChipClass: chipClass, statusLabel: label,
     salePriceLabel: krw(d.sale_price), faceValueLabel: krw(d.face_value), discountLabel: pct(d.discount_rate),
     cardChip: raw(iss.length ? chip("chip-card", d.card_benefit ?? `${iss.join("·")} 조건`) : ""),
@@ -402,7 +405,7 @@ async function emitProductDeal(d, det) {
   const relatedRows = related.map((x) => `<li><a href="${dealHref(x)}" class="flex justify-between gap-2 hover:underline"><span class="truncate">${esc(x.product_name ?? titleClean(x.title))}</span><span class="shrink-0 font-semibold text-brand-700">${esc(priceLabel(x))}</span></a></li>`).join("") || '<li class="text-ink-500">다른 진행 중 딜이 없습니다.</li>';
   const ctaButton = ended
     ? `<a href="${listPath("product")}" class="btn-primary mt-4 w-full">진행 중인 일반 핫딜 보기</a><button type="button" class="btn mt-2 w-full" aria-disabled="true" disabled>종료된 딜입니다</button>`
-    : `<a href="${esc(deal.deal_url)}" rel="nofollow noopener" target="_blank" class="btn-primary mt-4 w-full">원문 글에서 구매처 확인</a>`;
+    : buyButtonsHtml({ shopUrl: deal.shop_url, postUrl: deal.deal_url });
   const crumbItems = [{ name: "홈", href: "/" }, { name: "일반 핫딜", href: listPath("product") }, { name: name.slice(0, 40) }];
   const h1 = `${name} ${price !== "—" ? price : ""} · ${mLabel}`.replace(/\s+/g, " ");
   const reaction = reactionLabel(deal);
@@ -420,7 +423,7 @@ async function emitProductDeal(d, det) {
     conditionRows: raw(cond), priceRows: raw(priceRows), sourceRows: raw(sourceRowsHtml(det.posts)), relatedRows: raw(relatedRows),
     relatedTitle: sameMerchant.length ? `${mLabel} 다른 딜` : "다른 일반 핫딜",
     cardBenefits: raw(renderDealCardSection({ index: cardIndex, kind: "product", merchant: deal.merchant ?? null, merchantRaw: deal.merchant_raw ?? null, merchantName, issuerName, promoNote: deal.card_benefit ?? null })),
-    ctaCaption: ended ? "이 딜은 종료되었습니다" : "구매는 원문 글의 링크로 이동합니다",
+    ctaCaption: ended ? "이 딜은 종료되었습니다" : deal.shop_url ? "쇼핑몰 상품 페이지로 바로 이동합니다" : "구매는 원문 글의 링크로 이동합니다",
     ctaButton: raw(ctaButton),
     ctaNote: ended ? "종료된 일반 핫딜은 3일 뒤 목록에서 내려갑니다." : "판매처 페이지에서 가격·배송비·카드 조건을 반드시 다시 확인하세요. 이 사이트는 판매·중개를 하지 않습니다.",
   }), { indexable: !ended, lastmod: deal.last_seen });
@@ -451,7 +454,7 @@ for (const [i, d] of eligibleDeals.entries()) {
   const buyUrl = site.affiliate.enabled && deal.is_affiliate && deal.affiliate_url ? deal.affiliate_url : deal.deal_url;
   const ctaButton = ended
     ? `<a href="/brands/${esc(deal.brand)}/" class="btn-primary mt-4 w-full">같은 브랜드 진행 중 딜 보기</a><button type="button" class="btn mt-2 w-full" aria-disabled="true" disabled>종료된 딜입니다</button>`
-    : `<a href="${esc(buyUrl)}" rel="nofollow noopener${site.affiliate.enabled && deal.is_affiliate ? " sponsored" : ""}" target="_blank" class="btn-primary mt-4 w-full">원문 글에서 구매처 확인</a>`;
+    : buyButtonsHtml({ shopUrl: deal.shop_url, postUrl: buyUrl, rel: `nofollow noopener${site.affiliate.enabled && deal.is_affiliate ? " sponsored" : ""}` });
   const crumbItems = [{ name: "홈", href: "/" }, { name: brandName[deal.brand] ?? deal.brand, href: `/brands/${deal.brand}/` }, { name: titleClean(deal.title).slice(0, 40) }];
   const h1 = `${brandName[deal.brand] ?? deal.brand} ${deal.face_value ? `${faceLabel(deal.face_value)}권 ` : ""}${krw(deal.sale_price)}${deal.discount_rate != null ? ` (${pct(deal.discount_rate)} 할인)` : ""} · ${merchantName[deal.merchant] ?? deal.merchant ?? "커뮤니티 핫딜"}`;
   await emit(`/deal/${deal.id}/`, await render("deal", {
@@ -470,7 +473,7 @@ for (const [i, d] of eligibleDeals.entries()) {
     fourthLabel: deal.rate_gap != null ? "시세 대비" : "커뮤니티 반응", fourthValue: deal.rate_gap != null ? `${Number(deal.rate_gap).toFixed(1)}%p ↓` : `추천 ${deal.votes_total ?? 0}`,
     conditionRows: raw(cond), priceRows: raw(priceRows), historyRows: raw(historyRows), repeatWeeks: det.repeat_weeks ?? 1, sourceRows: raw(sourceRows), relatedRows: raw(relatedRows),
     cardBenefits: raw(renderDealCardSection({ index: cardIndex, merchant: deal.merchant ?? null, merchantName, issuerName, promoNote: deal.card_benefit ?? null })),
-    ctaCaption: ended ? "이 딜은 종료되었습니다" : "구매는 원문 글의 링크로 이동합니다",
+    ctaCaption: ended ? "이 딜은 종료되었습니다" : deal.shop_url ? "쇼핑몰 상품 페이지로 바로 이동합니다" : "구매는 원문 글의 링크로 이동합니다",
     ctaButton: raw(ctaButton),
     ctaNote: ended ? "종료 후에도 조건 비교를 위해 기록을 남겨 둡니다." : "판매처 페이지에서 가격·카드 조건·한도를 반드시 다시 확인하세요. 이 사이트는 판매·중개를 하지 않습니다.",
     rateAside: raw(deal.buy_rate != null ? `<div class="card p-5 text-sm"><h2 class="font-bold">시세 참고</h2><p class="mt-1 text-ink-700">현재 매입 시세 ${pct(deal.buy_rate)} 대비 이 딜의 가격 비율은 ${pct((deal.sale_price / deal.face_value) * 100)}입니다.</p><p class="mt-2 text-xs text-ink-500">${esc(site.rates.attribution)} · 참고 지표이며 매도를 권유하지 않습니다.</p></div>` : ""),

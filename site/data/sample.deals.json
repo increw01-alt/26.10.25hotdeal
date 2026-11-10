@@ -43,7 +43,9 @@
       "sources": [
         "ppomppu",
         "clien"
-      ]
+      ],
+      "shop_url": "https://www.example-shop.test/giftcard/1",
+      "image_url": null
     },
     {
       "id": "2905fee1e1fd76dc",
@@ -186,7 +188,9 @@
       "sources": [
         "ppomppu",
         "clien"
-      ]
+      ],
+      "shop_url": "https://www.example-shop.test/product/1000",
+      "image_url": null
     },
     {
       "iso_week": "2026-W46",
@@ -227,7 +231,9 @@
       "last_seen": "2026-11-10T03:30:00.000Z",
       "sources": [
         "ruliweb"
-      ]
+      ],
+      "shop_url": "https://www.example-shop.test/product/1001",
+      "image_url": null
     },
     {
       "iso_week": "2026-W46",
@@ -266,7 +272,9 @@
       "last_seen": "2026-11-10T03:20:00.000Z",
       "sources": [
         "ppomppu"
-      ]
+      ],
+      "shop_url": "https://www.example-shop.test/product/1002",
+      "image_url": null
     },
     {
       "iso_week": "2026-W46",

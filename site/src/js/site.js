@@ -73,3 +73,9 @@
     }
   } catch (e) { console.error("[status]", e); }
 })();
+
+// 썸네일을 못 불러오면 img 를 지워 밑의 자리 표시(판매처 첫 글자)가 보이게 한다. error 는 버블되지 않아 캡처로 받는다.
+document.addEventListener("error", function (e) {
+  var t = e.target;
+  if (t && t.tagName === "IMG" && t.hasAttribute("data-thumb")) t.remove();
+}, true);

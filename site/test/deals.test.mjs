@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { dealKind, pickHomeDeals, paginate, listPath, productPageEligible, priceLabel, merchantLabel } from "../scripts/lib/deals.mjs";
+import { safeUrl, shopHost, thumbHtml, shopLinkHtml, buyButtonsHtml } from "../scripts/lib/shop.mjs";
 
 const deal = (o) => ({ id: "x", status: "live", score: 0, ...o });
 
@@ -61,4 +62,56 @@ test("merchantLabel: 사전 이름 → 원문 표기 → 미확인", () => {
   assert.equal(merchantLabel({ merchant: null, merchant_raw: "하프클럽" }, names), "하프클럽");
   assert.equal(merchantLabel({ merchant: null, merchant_raw: null }, names), "판매처 미확인");
   assert.equal(merchantLabel({ merchant: "newshop" }, names), "newshop");
+});
+
+// ---------- 쇼핑몰 바로가기·썸네일 (D-22) ----------
+test("safeUrl: http(s) 만, 이미지는 https 만", () => {
+  assert.equal(safeUrl("https://shop.test/a?b=1"), "https://shop.test/a?b=1");
+  assert.equal(safeUrl("http://shop.test/a"), "http://shop.test/a");
+  for (const bad of ["javascript:alert(1)", "data:text/html,x", "//shop.test/a", "shop.test", "", null, undefined, 7]) assert.equal(safeUrl(bad), null);
+  assert.equal(safeUrl("http://img.test/a.jpg", { httpsOnly: true }), null);
+  assert.equal(safeUrl("https://img.test/a.jpg", { httpsOnly: true }), "https://img.test/a.jpg");
+});
+test("shopHost: www 를 뗀 도메인", () => {
+  assert.equal(shopHost("https://www.lotteon.com/p/1"), "lotteon.com");
+  assert.equal(shopHost("https://link.coupang.com/a/x"), "link.coupang.com");
+  assert.equal(shopHost("nope"), null);
+});
+test("thumbHtml: 이미지가 있으면 img, 없으면 판매처 첫 글자 자리 표시", () => {
+  const withImg = thumbHtml({ image_url: "https://img.test/a.jpg?x=1&y=2" }, "롯데온");
+  assert.match(withImg, /<img [^>]*src="https:\/\/img\.test\/a\.jpg\?x=1&amp;y=2"/);
+  assert.match(withImg, /loading="lazy"/); assert.match(withImg, /referrerpolicy="no-referrer"/); assert.match(withImg, /alt=""/); assert.match(withImg, /data-thumb/);
+  assert.match(withImg, />롯</); // 이미지가 안 뜰 때 보일 자리 표시가 밑에 깔려 있다
+  const noImg = thumbHtml({ image_url: null }, "쿠팡");
+  assert.doesNotMatch(noImg, /<img/); assert.match(noImg, />쿠</);
+  assert.doesNotMatch(thumbHtml({ image_url: "javascript:alert(1)" }, "x"), /<img/);
+  assert.doesNotMatch(thumbHtml({ image_url: "http://img.test/a.jpg" }, "x"), /<img/);
+  assert.match(thumbHtml({}, "<b>"), /&lt;/); assert.doesNotMatch(thumbHtml({}, "<b>"), /<b>/);
+  assert.match(thumbHtml({}, ""), />·</);
+});
+test("thumbHtml: 주소의 따옴표는 속성을 깨지 못한다", () => {
+  const html = thumbHtml({ image_url: 'https://img.test/a.jpg"onerror="alert(1)' }, "x");
+  assert.doesNotMatch(html, /"onerror="/);
+});
+test("shopLinkHtml: 쇼핑몰 주소가 있을 때만 카드 링크", () => {
+  const html = shopLinkHtml({ shop_url: "https://www.shop.test/p?a=1&b=2", status: "live" });
+  assert.match(html, /href="https:\/\/www\.shop\.test\/p\?a=1&amp;b=2"/); assert.match(html, /rel="nofollow noopener"/); assert.match(html, /target="_blank"/); assert.match(html, /쇼핑몰/);
+  assert.equal(shopLinkHtml({ shop_url: null, status: "live" }), "");
+  assert.equal(shopLinkHtml({ shop_url: "javascript:alert(1)", status: "live" }), "");
+  assert.equal(shopLinkHtml({ shop_url: "https://shop.test/p", status: "ended" }), "");
+});
+test("buyButtonsHtml: 쇼핑몰 주소가 있으면 주 버튼은 쇼핑몰, 원문은 보조", () => {
+  const html = buyButtonsHtml({ shopUrl: "https://www.shop.test/p/1", postUrl: "https://community.test/1" });
+  assert.match(html, /href="https:\/\/www\.shop\.test\/p\/1"[^>]*class="btn-primary/);
+  assert.match(html, /쇼핑몰에서 보기 \(shop\.test\)/);
+  assert.match(html, /href="https:\/\/community\.test\/1"/); assert.match(html, /커뮤니티 원문 글/);
+  assert.ok(html.indexOf("쇼핑몰에서 보기") < html.indexOf("커뮤니티 원문 글"));
+  assert.match(html, /쇼핑몰 주소는 커뮤니티 글에 올라온 그대로입니다/);
+});
+test("buyButtonsHtml: 쇼핑몰 주소가 없거나 이상하면 원문 글이 주 버튼", () => {
+  for (const shopUrl of [null, "javascript:alert(1)"]) {
+    const html = buyButtonsHtml({ shopUrl, postUrl: "https://community.test/1", rel: "nofollow noopener sponsored" });
+    assert.match(html, /href="https:\/\/community\.test\/1" rel="nofollow noopener sponsored"[^>]*class="btn-primary/);
+    assert.match(html, /원문 글에서 구매처 확인/); assert.doesNotMatch(html, /쇼핑몰에서 보기/);
+  }
 });

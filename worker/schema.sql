@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS deals (
   shipping      TEXT,                        -- 정규화한 배송비 표기
   product_category TEXT,                     -- 이후 단계용(지금은 항상 NULL)
   title_tokens  TEXT,                        -- 묶기용 정규화 토큰
+  shop_url      TEXT,                        -- 쇼핑몰 주소(글 페이지에서 뽑음, D-22)
+  image_url     TEXT,                        -- 쇼핑몰 상품 페이지의 대표 이미지 주소
   parse_method  TEXT NOT NULL DEFAULT 'regex', -- regex | llm | manual
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
@@ -70,8 +72,11 @@ CREATE TABLE IF NOT EXISTS deal_posts (
   first_seen  TEXT NOT NULL,
   last_seen   TEXT NOT NULL,
   closed      INTEGER NOT NULL DEFAULT 0,    -- 글 제목에 품절·종료 표시가 붙음(일반 딜)
+  shop_url    TEXT,                          -- 글 페이지에서 뽑은 쇼핑몰 주소(D-22)
+  detail_tries INTEGER NOT NULL DEFAULT 0,   -- 상세 수집 시도 횟수(2회까지)
   UNIQUE(source, post_id)
 );
+CREATE INDEX IF NOT EXISTS idx_posts_detail_pending ON deal_posts(detail_tries, first_seen);
 CREATE INDEX IF NOT EXISTS idx_posts_deal ON deal_posts(deal_id);
 CREATE INDEX IF NOT EXISTS idx_posts_source_seen ON deal_posts(source, first_seen);
 CREATE INDEX IF NOT EXISTS idx_posts_first_seen ON deal_posts(first_seen);

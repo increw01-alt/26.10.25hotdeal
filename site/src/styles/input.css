@@ -23,6 +23,8 @@
   .tab { @apply inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink-700 ring-1 ring-ink-300 transition hover:bg-surface-muted; }
   .tab[aria-pressed="true"] { @apply bg-brand-600 text-white ring-brand-600 hover:bg-brand-700; }
   .tab-count { @apply text-xs font-medium tabular-nums opacity-80; }
+  .thumb { @apply relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-md bg-surface-muted text-xl font-extrabold text-ink-300; }
+  .thumb img { @apply absolute inset-0 h-full w-full bg-white object-contain; }
   .stat { @apply rounded-md bg-surface-muted px-3 py-2; }
   .stat dt { @apply text-[11px] font-medium text-ink-500; }
   .stat dd { @apply text-base font-bold tabular-nums text-ink-900; }

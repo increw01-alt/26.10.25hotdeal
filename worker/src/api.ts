@@ -6,6 +6,8 @@ import { fetchRaw } from "./fetchers/http";
 import { fetchSource } from "./fetchers";
 import { enabledSources, cronSources, relaySources, SOURCES } from "./config";
 import type { RawPost } from "./types";
+import { sanitizeDetailResults } from "./detail";
+import { applyDetails, pendingDetails } from "./detail-store";
 
 /**
  * 공개 피드 API (D-04). 외부 사이트(모두의시세·협회 등)가 가져다 쓰는 엔드포인트.
@@ -66,7 +68,7 @@ export async function handleApi(req: Request, env: Env): Promise<Response> {
 const DEAL_COLUMNS = `id, iso_week, brand, merchant, category, title, face_value, sale_price, discount_rate,
   card_issuers, card_benefit, limit_per_person, payment_note, valid_until, buy_rate, rate_gap, rate_source,
   deal_url, is_affiliate, affiliate_url, status, score, votes_total, comments_total, first_seen, last_seen, ended_at,
-  kind, product_name, merchant_raw, price_kind, price_text, shipping, product_category,
+  kind, product_name, merchant_raw, price_kind, price_text, shipping, product_category, shop_url, image_url,
   (SELECT GROUP_CONCAT(DISTINCT p.source) FROM deal_posts p WHERE p.deal_id = deals.id) AS sources`;
 
 export const MAX_LIMIT = 500;
@@ -137,7 +139,7 @@ async function weeklyPayload(env: Env, week: string) {
 async function dealDetail(env: Env, id: string) {
   const deal = await env.DB.prepare(`SELECT ${DEAL_COLUMNS}, dedupe_key FROM deals WHERE id = ?`).bind(id).first<Record<string, unknown>>();
   if (!deal) return null;
-  const posts = (await env.DB.prepare("SELECT source, post_url, title, posted_at, votes, comments FROM deal_posts WHERE deal_id = ? ORDER BY first_seen").bind(id).all()).results;
+  const posts = (await env.DB.prepare("SELECT source, post_url, title, posted_at, votes, comments, shop_url FROM deal_posts WHERE deal_id = ? ORDER BY first_seen").bind(id).all()).results;
   const prices = (await env.DB.prepare("SELECT date, sale_price, buy_rate, votes, comments FROM deal_prices WHERE deal_id = ? ORDER BY date").bind(id).all()).results;
   // 같은 조건(주차 제외)의 과거 딜: 반복 주차 표시용 (D-02)
   // 일반 딜은 과거 반복을 계산하지 않는다(상품권 기능).
@@ -229,6 +231,15 @@ async function handleAdmin(req: Request, path: string, url: URL, env: Env): Prom
     const host = typeof (body.relay as { host?: unknown } | undefined)?.host === "string" ? String((body.relay as { host: string }).host).slice(0, 60) : undefined;
     const summary = await recordRelayRun(env, { counts: body.counts ?? {}, errors: body.errors ?? {}, parsed: r.parsed, newDeals: r.newDeals, received: posts.length, host });
     return nocache({ ok: true, received: posts.length, ...r, ...summary });
+  }
+  if (path === "/__admin/pending-details") {
+    // 중계가 상세(쇼핑몰 주소·대표 이미지)를 가져올 글 목록 (D-22)
+    return nocache({ posts: await pendingDetails(env, Number(url.searchParams.get("limit") ?? 0) || undefined) });
+  }
+  if (path === "/__admin/details") {
+    const body = (await readJson(url)) as { results?: unknown } | null;
+    if (!body || !Array.isArray(body.results)) return nocache({ error: "body.results 배열 필요" }, 400);
+    return nocache({ ok: true, ...(await applyDetails(env, sanitizeDetailResults(body.results))) });
   }
   if (path === "/__admin/run") {
     const started = Date.now();

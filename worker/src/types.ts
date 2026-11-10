@@ -51,6 +51,7 @@ export interface ParsedDeal {
   limitPerPerson: string | null;
   paymentNote: string | null;
   confidence: number;       // 0~1
+  weakOnly: boolean;        // 짧은 alias로만 잡혔고 상품권 단서가 없음(일반 딜 후보)
 }
 
 export interface SourceDef {

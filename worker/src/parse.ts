@@ -1,7 +1,7 @@
 import { BRANDS, GIFT_MERCHANTS, CARD_ISSUERS } from "./config";
 import type { ParsedDeal, RawPost } from "./types";
 
-const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+export const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 
 /** 가장 긴 alias가 먼저 매칭되도록 정렬 */
 const brandIndex = BRANDS.flatMap((b) => b.aliases.map((a) => ({ alias: norm(a), b })))
@@ -27,7 +27,7 @@ export function parseKRW(token: string): number | null {
   return Math.round(n);
 }
 
-const AMOUNT = "\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?\\s*[만천]|\\d{4,7}";
+export const AMOUNT ="\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?\\s*[만천]|\\d{4,7}";
 
 /** 제목에서 액면가·판매가 후보 추출 */
 export function extractPrices(title: string, knownFaceValues: number[]): { face: number | null; sale: number | null } {
@@ -50,18 +50,42 @@ export function extractPrices(title: string, knownFaceValues: number[]): { face:
 }
 
 /** "10% 할인", "8%" 등 퍼센트 할인 표기 */
-function extractPercent(title: string): number | null {
+export function extractPercent(title: string): number | null {
   const m = title.match(/(\d{1,2}(?:\.\d)?)\s*%/);
   return m ? parseFloat(m[1]) : null;
 }
 
-function extractLimit(title: string): string | null {
+export function extractLimit(title: string): string | null {
   const m = title.match(/(1인|인당|계정당|ID당|아이디당)\s*(?:최대\s*)?(\d+\s*(?:매|장|개|회|만원|만))/i)
     ?? title.match(/(월|주|일|하루)\s*(?:최대\s*)?(\d+\s*(?:매|장|개|회|만원|만))/);
   return m ? `${m[1]} ${m[2]}`.replace(/\s+/g, " ") : null;
 }
 
-function extractPaymentNote(title: string): string | null {
+/**
+ * 적립·캐시백·페이백·추첨·응모 이벤트 글(예: "네이버페이 9,900원 이상 결제시 50% 적립")인지.
+ * 상품권·충전·구매 맥락이 함께 있으면 이벤트로 보지 않는다(예: "컬쳐랜드 5만원 충전 시 5% 적립").
+ * 상품권 파서와 일반 딜 파서가 같이 쓴다: 이런 글은 어느 쪽 딜로도 받지 않는다.
+ */
+export function isRewardEventTitle(title: string): boolean {
+  return /적립|캐시백|페이백|추첨|응모/.test(title) && !/상품권|기프트|충전|권\s*구매|교환권|관람권/.test(title);
+}
+
+/** 제목의 카드사와 카드 혜택 요약. 상품권·일반 딜 공용 */
+export function extractCardInfo(title: string): { issuers: string[]; cardBenefit: string | null } {
+  const n = norm(title);
+  const pct = extractPercent(title);
+  const cardIssuers = [...new Set(cardIndex.filter((x) => n.includes(x.alias)).map((x) => x.c.slug))];
+  // "카드" 단어 없이 "신한", "현대"만 나오는 경우 오탐 방지: 카드/할인/결제 문맥이 있을 때만 인정
+  const cardContext = /카드|할인|결제|청구|즉시/.test(title);
+  const issuers = cardContext ? cardIssuers : cardIssuers.filter((slug) =>
+    CARD_ISSUERS.find((c) => c.slug === slug)!.aliases.some((a) => /카드|뱅크/.test(a) && n.includes(norm(a))));
+  const cardBenefit = issuers.length
+    ? `${issuers.map((s) => CARD_ISSUERS.find((c) => c.slug === s)!.name).join("·")}${pct !== null ? ` ${pct}%` : ""}${/즉시/.test(title) ? " 즉시할인" : /청구/.test(title) ? " 청구할인" : " 할인"}`
+    : null;
+  return { issuers, cardBenefit };
+}
+
+export function extractPaymentNote(title: string): string | null {
   const notes: string[] = [];
   if (/즉시\s*할인/.test(title)) notes.push("즉시할인");
   if (/청구\s*할인/.test(title)) notes.push("청구할인");
@@ -93,7 +117,7 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
 
   // 적립·캐시백·페이백 이벤트(예: "네이버페이 9,900원 이상 결제시 50% 적립")는 상품권 구매 딜이 아니다.
   // 상품권·충전·구매 맥락이 함께 있으면 딜로 본다(예: "컬쳐랜드 5만원 충전 시 5% 적립").
-  if (/적립|캐시백|페이백|추첨|응모/.test(title) && !/상품권|기프트|충전|권\s*구매|교환권|관람권/.test(title)) return null;
+  if (isRewardEventTitle(title)) return null;
 
   let merchant: string | null = bracketMerchant;
   if (!merchant) {
@@ -117,15 +141,7 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
     discountRate = pct;
   }
 
-  const cardIssuers = [...new Set(cardIndex.filter((x) => n.includes(x.alias)).map((x) => x.c.slug))];
-  // "카드" 단어 없이 "신한", "현대"만 나오는 경우 오탐 방지: 카드/할인/결제 문맥이 있을 때만 인정
-  const cardContext = /카드|할인|결제|청구|즉시/.test(title);
-  const issuers = cardContext ? cardIssuers : cardIssuers.filter((slug) =>
-    CARD_ISSUERS.find((c) => c.slug === slug)!.aliases.some((a) => /카드|뱅크/.test(a) && n.includes(norm(a))));
-
-  const cardBenefit = issuers.length
-    ? `${issuers.map((s) => CARD_ISSUERS.find((c) => c.slug === s)!.name).join("·")}${pct !== null ? ` ${pct}%` : ""}${/즉시/.test(title) ? " 즉시할인" : /청구/.test(title) ? " 청구할인" : " 할인"}`
-    : null;
+  const { issuers, cardBenefit } = extractCardInfo(title);
 
   // 신뢰도: 가격 정보(판매가 또는 할인율)가 전혀 없으면 0.45 상한 → parse_queue 행
   let confidence = 0.35;
@@ -136,7 +152,8 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
   if (salePrice === null && discountRate === null) confidence = Math.min(confidence, 0.45);
   if (discountRate !== null && (discountRate < 0 || discountRate > 60)) confidence = Math.min(confidence, 0.3); // 비정상 할인율 → 큐
   // 짧고 흔한 alias로만 잡힌 브랜드는 상품권 단서나 액면가+판매가가 함께 있어야 확정 → 없으면 큐
-  if (WEAK_ALIASES.has(brandHit.alias) && !GIFT_CONTEXT.test(title) && !(face && sale)) confidence = Math.min(confidence, 0.45);
+  const weakOnly = WEAK_ALIASES.has(brandHit.alias) && !GIFT_CONTEXT.test(title) && !(face && sale);
+  if (weakOnly) confidence = Math.min(confidence, 0.45);
 
   return {
     brand: brand.slug,
@@ -151,6 +168,7 @@ export function parseTitle(post: RawPost): ParsedDeal | null {
     limitPerPerson: extractLimit(title),
     paymentNote: extractPaymentNote(title),
     confidence: Math.max(0, Math.min(1, +confidence.toFixed(2))),
+    weakOnly,
   };
 }
 

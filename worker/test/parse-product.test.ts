@@ -152,3 +152,23 @@ describe("isClosedTitle", () => {
     expect(isClosedTitle("[쿠팡] 삼다수 (9,900원/무료)")).toBe(false);
   });
 });
+
+// ---------- 2026-11-11 운영 데이터 점검에서 나온 것 ----------
+describe("운영 점검: 가격 앞의 말, 판매처 별칭", () => {
+  it("가격 앞에 '카드', '쿠폰가', '최종' 같은 말이 붙어도 숫자 가격으로 읽는다", () => {
+    for (const [label, want] of [["카드25,780원", 25780], ["쿠폰가 9,900원", 9900], ["최종 12,300원", 12300], ["체감가 5.9만", 59000], ["와우 3,980원", 3980], ["T멤 28,710원", 28710], ["토스페이 24640원", 24640], ["티맴버십18020", 18020], ["페이코 14,976원", 14976], ["티멤 9980", 9980]] as const) {
+      const d = p(`[지마켓] 테스트 면도기 풀세트 (${label}/무료)`)!;
+      expect(d.priceKind, label).toBe("exact");
+      expect(d.salePrice, label).toBe(want);
+      expect(d.shipping, label).toBe("무료");
+    }
+  });
+  it("가격이 아닌 말은 여전히 가격이 아니다", () => {
+    const d = p("[지마켓] 테스트 면도기 (카드할인/무료)")!;
+    expect(d.salePrice).toBeNull();
+  });
+  it("[SEC] 는 삼성닷컴이다(클리앙 표기). 루리웹의 [삼성닷컴] 글과 같은 판매처로 묶인다", () => {
+    expect(p("[SEC] 테스트 그립톡 (39,600원)")!.merchant).toBe("samsungstore");
+    expect(p("[삼성닷컴] 테스트 그립톡 (39,600/0)")!.merchant).toBe("samsungstore");
+  });
+});

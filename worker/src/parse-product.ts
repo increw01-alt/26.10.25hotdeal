@@ -25,9 +25,13 @@ const CLOSED = new Set(["종료", "품절", "마감", "완판", "판매종료", 
 const GROUP = /[\[(]([^\[\]()]*)[\])]/g;
 const LEAD = /^\s*[\[(]([^\[\]()]{1,20})[\])]\s*/;
 
+/** 가격 앞에 붙는 조건·결제수단 표기. 숫자가 바로 뒤따를 때만 뗀다 */
+const PRICE_LABEL = /^(?:카드가?|쿠폰가?|최종가?|할인가|특가|체감가?|실구매가?|회원가|앱가?|와우|[t티]멤(?:버십)?|[t티]맴버십|토스(?:페이)?|페이코|네이버페이|네페|카카오페이|카페이|삼성페이|스마일페이)(?=\d)/i;
+
 /** 금액 표기 한 조각 전체("9,900원", "5.9만", "45900"). marker: 쉼표·만·천·원 중 하나가 있어 금액임이 분명한가 */
 function readAmount(piece: string): { value: number; marker: boolean } | null {
-  const t = norm(piece).replace(/^약/, "").replace(/[~대]$/, "");
+  // 가격 앞에 붙는 말("카드25,780원", "쿠폰가 9,900원", "최종 12,300원")은 떼고 읽는다
+  const t = norm(piece).replace(PRICE_LABEL, "").replace(/^약/, "").replace(/[~대]$/, "");
   if (!/^(?:(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?[만천]|\d{3,11})원?|\d{1,2}원)$/.test(t)) return null;
   const value = parseKRW(t);
   return value === null ? null : { value, marker: /[,만천원]/.test(t) };

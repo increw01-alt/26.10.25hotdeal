@@ -53,7 +53,7 @@
     { "slug": "tmon", "name": "티몬", "aliases": ["티몬", "tmon"], "product_only": true },
     { "slug": "interpark", "name": "인터파크", "aliases": ["인터파크", "interpark"], "product_only": true },
     { "slug": "amazon", "name": "아마존", "aliases": ["아마존", "amazon"], "product_only": true },
-    { "slug": "samsungstore", "name": "삼성닷컴", "aliases": ["삼성닷컴", "삼성스토어", "samsung.com"], "product_only": true },
+    { "slug": "samsungstore", "name": "삼성닷컴", "aliases": ["삼성닷컴", "삼성스토어", "samsung.com", "SEC"], "product_only": true },
     { "slug": "kyobo", "search_url": "https://search.kyobobook.co.kr/search?keyword={q}", "name": "교보문고", "aliases": ["교보문고", "교보", "kyobo"], "product_only": true },
     { "slug": "yes24", "search_url": "https://www.yes24.com/Product/Search?query={q}", "name": "예스24", "aliases": ["yes24", "예스24"], "product_only": true },
     { "slug": "aladin", "search_url": "https://www.aladin.co.kr/search/wsearchresult.aspx?SearchWord={q}", "name": "알라딘", "aliases": ["알라딘", "aladin"], "product_only": true },

@@ -58,3 +58,15 @@ describe("rowToDeal", () => {
     expect(d.sources).toEqual([]);
   });
 });
+
+describe("rowToDeal: 판매처가 비어 있으면 쇼핑몰 주소로 채운다", () => {
+  it("이미 저장된 옛 행에도 적용된다", () => {
+    const d = rowToDeal({ kind: "product", merchant: null, merchant_raw: null, shop_url: "https://brand.naver.com/x/products/1", card_issuers: "[]", sources: "clien" }) as Record<string, unknown>;
+    expect(d.merchant).toBe("naver");
+    expect(d.merchant_name).toBe("네이버");
+  });
+  it("제목에서 읽은 판매처가 있으면 그대로 둔다", () => {
+    const d = rowToDeal({ kind: "product", merchant: "gmarket", shop_url: "https://brand.naver.com/x", card_issuers: "[]", sources: "clien" }) as Record<string, unknown>;
+    expect(d.merchant).toBe("gmarket");
+  });
+});

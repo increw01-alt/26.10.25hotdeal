@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { pendingDetailsQuery } from "../src/detail-store";
-import { DETAIL_SOURCES, extractShopUrl, cleanShopUrl, extractOgImage, shouldFetchImage, sanitizeDetailResults, detailPageUrl, pageOutcome, isPrivateAddress } from "../src/detail";
+import { DETAIL_SOURCES, merchantFromShopUrl, SHOP_HOST_MERCHANT, extractShopUrl, cleanShopUrl, extractOgImage, shouldFetchImage, sanitizeDetailResults, detailPageUrl, pageOutcome, isPrivateAddress } from "../src/detail";
 
 // HTML 조각은 모두 지어낸 것이다(구조만 실제와 같다).
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
@@ -209,5 +209,26 @@ describe("sanitizeDetailResults", () => {
     ]);
     expect(sanitizeDetailResults(Array.from({ length: 30 }, (_, i) => ({ source: "clien", post_id: String(i), shop_url: null, image_url: null })))).toHaveLength(20);
     expect(sanitizeDetailResults({ nope: 1 })).toEqual([]);
+  });
+});
+
+// 2026-11-11 운영에서 발견: 제목에 판매처가 없어 "판매처 미확인"인데 쇼핑몰 주소는 brand.naver.com 인 딜.
+describe("merchantFromShopUrl", () => {
+  it("쇼핑몰 주소의 도메인으로 판매처를 안다", () => {
+    const cases: Array<[string, string]> = [
+      ["https://brand.naver.com/x/products/1", "naver"], ["https://smartstore.naver.com/x/products/1", "naver"], ["https://naver.me/abc", "naver"],
+      ["https://www.coupang.com/vp/products/1", "coupang"], ["https://link.coupang.com/a/x", "coupang"],
+      ["https://m.gmarket.co.kr/vi/product/1", "gmarket"], ["https://link.gmarket.co.kr/abc", "gmarket"], ["https://itempage3.auction.co.kr/x", "auction"],
+      ["https://www.11st.co.kr/products/1", "11st"], ["https://www.lotteon.com/p/product/LO1", "lotteon"],
+      ["https://www.samsung.com/sec/x/", "samsungstore"], ["https://store.steampowered.com/app/1/", "steam"], ["https://www.musinsa.com/products/1", "musinsa"],
+    ];
+    for (const [url, slug] of cases) expect(merchantFromShopUrl(url), url).toBe(slug);
+  });
+  it("모르는 도메인, 비슷하게 생긴 도메인, 주소가 아닌 값은 null", () => {
+    for (const u of ["https://www.example-shop.test/p/1", "https://notcoupang.com/x", "https://coupang.com.evil.test/x", "x", ""]) expect(merchantFromShopUrl(u)).toBeNull();
+  });
+  it("돌려주는 판매처는 모두 사전에 있다", async () => {
+    const { MERCHANTS } = await import("../src/config");
+    for (const slug of Object.values(SHOP_HOST_MERCHANT)) expect(MERCHANTS.some((m) => m.slug === slug), slug).toBe(true);
   });
 });

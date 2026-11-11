@@ -237,3 +237,19 @@ export function sanitizeDetailResults(input: unknown): DetailResult[] {
   }
   return out;
 }
+
+/** 쇼핑몰 도메인 → 판매처 slug. 제목에 판매처가 없던 딜을 쇼핑몰 주소로 채운다 */
+export const SHOP_HOST_MERCHANT: Record<string, string> = {
+  "naver.com": "naver", "naver.me": "naver", "coupang.com": "coupang", "gmarket.co.kr": "gmarket", "auction.co.kr": "auction",
+  "11st.co.kr": "11st", "lotteon.com": "lotteon", "ssg.com": "ssg", "samsung.com": "samsungstore", "steampowered.com": "steam",
+  "musinsa.com": "musinsa", "kurly.com": "kurly", "ohou.se": "ohou", "29cm.co.kr": "29cm", "oliveyoung.co.kr": "oliveyoung",
+  "gsshop.com": "gsshop", "yes24.com": "yes24", "aladin.co.kr": "aladin", "kyobobook.co.kr": "kyobo", "aliexpress.com": "aliexpress",
+};
+
+export function merchantFromShopUrl(shopUrl: string): string | null {
+  const u = parseUrl(shopUrl);
+  if (!u || (u.protocol !== "http:" && u.protocol !== "https:")) return null;
+  const host = u.hostname.toLowerCase();
+  for (const [h, slug] of Object.entries(SHOP_HOST_MERCHANT)) if (host === h || host.endsWith(`.${h}`)) return slug;
+  return null;
+}

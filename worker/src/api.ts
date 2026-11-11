@@ -6,7 +6,7 @@ import { fetchRaw } from "./fetchers/http";
 import { fetchSource } from "./fetchers";
 import { enabledSources, cronSources, relaySources, SOURCES } from "./config";
 import type { RawPost } from "./types";
-import { sanitizeDetailResults } from "./detail";
+import { merchantFromShopUrl, sanitizeDetailResults } from "./detail";
 import { applyDetails, pendingDetails } from "./detail-store";
 
 /**
@@ -76,13 +76,16 @@ export const MAX_LIMIT = 500;
 export function rowToDeal(r: Record<string, unknown>) {
   const kind = r.kind === "product" ? "product" : "gift"; // 옛 행·옛 사본에는 kind 가 없다 → 상품권
   const b = BRANDS.find((x) => x.slug === r.brand);
-  const merchantName = MERCHANTS.find((m) => m.slug === r.merchant)?.name;
+  // 제목에 판매처가 없던 딜은 쇼핑몰 주소의 도메인으로 채운다(D-22 이전에 저장된 행 포함)
+  const merchant = (r.merchant as string | null) ?? (typeof r.shop_url === "string" ? merchantFromShopUrl(r.shop_url) : null);
+  const merchantName = MERCHANTS.find((m) => m.slug === merchant)?.name;
   return {
     ...r,
+    merchant,
     kind,
     brand_name: kind === "product" ? null : (b?.name ?? r.brand),
     // 일반 딜은 사전에 없는 판매처를 merchant_raw 로 따로 준다
-    merchant_name: kind === "product" ? (merchantName ?? null) : (merchantName ?? r.merchant ?? null),
+    merchant_name: kind === "product" ? (merchantName ?? null) : (merchantName ?? merchant ?? null),
     card_issuers: safeJson(r.card_issuers as string, []),
     sources: typeof r.sources === "string" && r.sources ? r.sources.split(",") : [],
     is_affiliate: !!r.is_affiliate,

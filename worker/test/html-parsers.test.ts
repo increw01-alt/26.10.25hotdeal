@@ -88,3 +88,23 @@ describe("parseFmkoreaList", () => {
     expect(posts[1].url).toBe("https://www.fmkorea.com/8812345679");
   });
 });
+
+// 2026-11-11 운영에서 발견: 클리앙은 품절을 제목이 아니라 행의 class(sold_out)와 "품절" 아이콘으로 표시한다.
+describe("parseClienList: 품절 표시", () => {
+  const row = (cls: string, extra: string) => `
+    <div class="list_item symph_row jirum ${cls}" data-role="list-row" data-board-sn=19200001 data-comment-count=6>
+      <div class="list_title"><span class="list_subject" title="테스트 방한화 30,520원">
+        <a href="/service/board/jirum/19200001?od=T31" data-role="list-title-text">테스트 방한화 30,520원</a></span>
+        <div class="keyword"><a class="icon_keyword">상품정보</a>${extra}</div></div>
+    </div><div class="board-nav"></div>`;
+  it("sold_out 행은 제목 앞에 [품절] 을 붙여 넘긴다(뒤 단계가 종료로 처리)", () => {
+    expect(parseClienList(row(" sold_out", '<span class="icon_info">품절</span>'), "clien")[0].title).toBe("[품절] 테스트 방한화 30,520원");
+  });
+  it("class 없이 품절 아이콘만 있어도 같다", () => {
+    expect(parseClienList(row("", '<span class="icon_info">품절</span>'), "clien")[0].title).toBe("[품절] 테스트 방한화 30,520원");
+  });
+  it("품절이 아닌 행과 다른 아이콘은 그대로", () => {
+    expect(parseClienList(row("", ""), "clien")[0].title).toBe("테스트 방한화 30,520원");
+    expect(parseClienList(row("", '<span class="icon_info">인기</span>'), "clien")[0].title).toBe("테스트 방한화 30,520원");
+  });
+});

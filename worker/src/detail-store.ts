@@ -3,7 +3,7 @@
  * 중계가 pendingDetails 로 대상 글을 받아 가고, applyDetails 로 결과를 돌려준다.
  */
 import type { Env } from "./types";
-import { DETAIL_SOURCES, type DetailResult } from "./detail";
+import { DETAIL_SOURCES, merchantFromShopUrl, type DetailResult } from "./detail";
 
 export const DETAIL_MAX_TRIES = 2;
 export const DETAIL_WINDOW_HOURS = 24;
@@ -43,9 +43,10 @@ export async function applyDetails(env: Env, results: DetailResult[]): Promise<{
       stmts.push(env.DB.prepare(
         `UPDATE deals SET
            image_url = CASE WHEN image_url IS NULL AND (shop_url IS NULL OR shop_url = ?) THEN ? ELSE image_url END,
-           shop_url = COALESCE(shop_url, ?)
+           shop_url = COALESCE(shop_url, ?),
+           merchant = COALESCE(merchant, ?)
          WHERE id = (SELECT deal_id FROM deal_posts WHERE source = ? AND post_id = ?)`,
-      ).bind(r.shopUrl, r.imageUrl, r.shopUrl, r.source, r.postId));
+      ).bind(r.shopUrl, r.imageUrl, r.shopUrl, merchantFromShopUrl(r.shopUrl), r.source, r.postId)); // 제목에 판매처가 없던 딜은 쇼핑몰 도메인으로 채운다
     }
   }
   await env.DB.batch(stmts);

@@ -10,6 +10,9 @@ import { fetchText, stripTags, decodeEntities } from "./http";
  *   <span class="timestamp">2026-10-27 09:12:00</span>
  * 추천 수는 <em>/<span> 어느 쪽이든, 제목은 <a>/<span> 어느 쪽이든 읽히도록 느슨하게 잡는다.
  */
+const SOLD_OUT_ROW = /^<div[^>]*class="[^"]*\bsold_out\b/i;
+const SOLD_OUT_ICON = /class="[^"]*\bicon_info\b[^"]*"[^>]*>\s*(?:품절|종료|마감)\s*</i;
+
 export function parseClienList(html: string, source: string): RawPost[] {
   const posts: RawPost[] = [];
   const seen = new Set<string>();
@@ -22,8 +25,11 @@ export function parseClienList(html: string, source: string): RawPost[] {
     const titleHtml = /data-role="list-title-text"[^>]*>([\s\S]*?)<\/(?:a|span)>/i.exec(row)?.[1]
       ?? /class="[^"]*subject_fixed[^"]*"[^>]*>([\s\S]*?)<\/span>/i.exec(row)?.[1]
       ?? /class="[^"]*list_subject[^"]*"[^>]*title="([^"]+)"/i.exec(row)?.[1] ?? "";
-    const title = stripTags(titleHtml);
-    if (!title) continue;
+    const rawTitle = stripTags(titleHtml);
+    if (!rawTitle) continue;
+    // 품절은 제목이 아니라 행의 class(sold_out)와 "품절" 아이콘으로 표시된다. 제목 앞에 붙여 뒤 단계(isClosedTitle)가 종료로 처리하게 한다
+    const soldOut = SOLD_OUT_ROW.test(m[0].slice(0, 300)) || SOLD_OUT_ICON.test(row);
+    const title = soldOut && !rawTitle.startsWith("[품절]") ? `[품절] ${rawTitle}` : rawTitle;
     if (/공지|notice/i.test(row.slice(0, 300)) && /list_notice|notice_row/i.test(row)) continue;
     const comments = Number(/data-comment-count="?(\d+)/i.exec(m[0])?.[1]
       ?? /class="[^"]*rSymph05[^"]*"[^>]*>\s*(\d+)/i.exec(row)?.[1] ?? 0);

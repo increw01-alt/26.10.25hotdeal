@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { esc, buildCardIndex, renderDealCardSection, renderCardsPageSections, publicCards, CARD_NOTICE } from "./lib/card-benefits.mjs";
 import { raw, renderValue, jsonLdText } from "./lib/template.mjs";
 import { dealKind, pickHomeDeals, paginate, listPath, productPageEligible, priceLabel, merchantLabel } from "./lib/deals.mjs";
-import { thumbHtml, shopLinkHtml, buyButtonsHtml } from "./lib/shop.mjs";
+import { thumbHtml, shopLinkHtml, buyButtonsHtml, shopSearch } from "./lib/shop.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
@@ -223,7 +223,7 @@ async function productCard(d) {
   return (await render("partials/product-card", {
     id: d.id, status: d.status, merchant: d.merchant ?? "",
     merchantLabel: merchantLabel(d, merchantName),
-    thumb: raw(thumbHtml(d, merchantLabel(d, merchantName))), shopLink: raw(shopLinkHtml(d)),
+    thumb: raw(thumbHtml(d, merchantLabel(d, merchantName))), shopLink: raw(shopLinkHtml(d, shopSearch(d, brandsJson.merchants))),
     productName: d.product_name ?? titleClean(d.title), statusChipClass: chipClass, statusLabel: label,
     priceLabel: priceLabel(d), shippingLabel: d.shipping ?? "—",
     cardChip: raw(iss.length ? chip("chip-card", d.card_benefit ?? `${iss.join("·")} 조건`) : ""),
@@ -405,7 +405,7 @@ async function emitProductDeal(d, det) {
   const relatedRows = related.map((x) => `<li><a href="${dealHref(x)}" class="flex justify-between gap-2 hover:underline"><span class="truncate">${esc(x.product_name ?? titleClean(x.title))}</span><span class="shrink-0 font-semibold text-brand-700">${esc(priceLabel(x))}</span></a></li>`).join("") || '<li class="text-ink-500">다른 진행 중 딜이 없습니다.</li>';
   const ctaButton = ended
     ? `<a href="${listPath("product")}" class="btn-primary mt-4 w-full">진행 중인 일반 핫딜 보기</a><button type="button" class="btn mt-2 w-full" aria-disabled="true" disabled>종료된 딜입니다</button>`
-    : buyButtonsHtml({ shopUrl: deal.shop_url, postUrl: deal.deal_url });
+    : buyButtonsHtml({ shopUrl: deal.shop_url, postUrl: deal.deal_url, search: shopSearch(deal, brandsJson.merchants) });
   const crumbItems = [{ name: "홈", href: "/" }, { name: "일반 핫딜", href: listPath("product") }, { name: name.slice(0, 40) }];
   const h1 = `${name} ${price !== "—" ? price : ""} · ${mLabel}`.replace(/\s+/g, " ");
   const reaction = reactionLabel(deal);
@@ -423,7 +423,7 @@ async function emitProductDeal(d, det) {
     conditionRows: raw(cond), priceRows: raw(priceRows), sourceRows: raw(sourceRowsHtml(det.posts)), relatedRows: raw(relatedRows),
     relatedTitle: sameMerchant.length ? `${mLabel} 다른 딜` : "다른 일반 핫딜",
     cardBenefits: raw(renderDealCardSection({ index: cardIndex, kind: "product", merchant: deal.merchant ?? null, merchantRaw: deal.merchant_raw ?? null, merchantName, issuerName, promoNote: deal.card_benefit ?? null })),
-    ctaCaption: ended ? "이 딜은 종료되었습니다" : deal.shop_url ? "쇼핑몰 상품 페이지로 바로 이동합니다" : "구매는 원문 글의 링크로 이동합니다",
+    ctaCaption: ended ? "이 딜은 종료되었습니다" : deal.shop_url ? "쇼핑몰 상품 페이지로 바로 이동합니다" : shopSearch(deal, brandsJson.merchants) ? "판매처에서 상품명으로 검색합니다" : "구매는 원문 글의 링크로 이동합니다",
     ctaButton: raw(ctaButton),
     ctaNote: ended ? "종료된 일반 핫딜은 3일 뒤 목록에서 내려갑니다." : "판매처 페이지에서 가격·배송비·카드 조건을 반드시 다시 확인하세요. 이 사이트는 판매·중개를 하지 않습니다.",
   }), { indexable: !ended, lastmod: deal.last_seen });

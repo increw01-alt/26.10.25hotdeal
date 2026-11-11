@@ -10,7 +10,7 @@
 import { SOURCES, relaySources } from "./config";
 import { fetchSource } from "./fetchers";
 import { fetchRaw } from "./fetchers/http";
-import { detailPageUrl, extractOgImage, extractShopUrl, isPrivateAddress, pageOutcome, shouldFetchImage } from "./detail";
+import { detailPageUrl, extractOgImage, extractPostImage, extractShopUrl, isPrivateAddress, pageOutcome, shouldFetchImage } from "./detail";
 import type { Env, RawPost, SourceDef } from "./types";
 
 type Args = { api: string; token: string; sources: string[]; loop: number; ua: string; deadline: number };
@@ -143,6 +143,8 @@ async function runDetails(a: Args, deadline = Infinity): Promise<void> {
       if (outcome === "retry") { stat.retry++; continue; }
       if (outcome === "ok") shop = extractShopUrl(p.source, text);
       if (shop) { const head = await fetchShopHead(shop, a.ua); if (head) image = extractOgImage(head.html, head.url); }
+      // 쇼핑몰 이미지를 못 얻으면 글의 대표 이미지를 쓴다(D-24)
+      if (!image && outcome === "ok") image = extractPostImage(p.source, text, pageUrl);
     }
     try {
       const res = await fetch(`${a.api}/__admin/details`, { method: "POST", headers, body: JSON.stringify({ results: [{ source: p.source, post_id: p.post_id, shop_url: shop, image_url: image }] }), signal: AbortSignal.timeout(20000) });

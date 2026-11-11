@@ -19,7 +19,9 @@ export function pendingDetailsQuery(now = new Date(), limit = DETAIL_BATCH): { s
             SELECT source, post_id, post_url, first_seen,
                    ROW_NUMBER() OVER (PARTITION BY source ORDER BY first_seen DESC) AS rn
             FROM deal_posts
-            WHERE detail_tries < ? AND first_seen > ? AND shop_url IS NULL AND closed = 0 AND source IN (${marks})
+            WHERE detail_tries < ? AND first_seen > ? AND closed = 0
+              AND (shop_url IS NULL OR (SELECT d.image_url FROM deals d WHERE d.id = deal_posts.deal_id) IS NULL)
+              AND source IN (${marks})
           ) WHERE rn <= ? ORDER BY first_seen DESC`,
     binds: [DETAIL_MAX_TRIES, since, ...DETAIL_SOURCES, Math.min(Math.max(1, Math.floor(limit) || DETAIL_BATCH), 10)],
   };
@@ -39,6 +41,10 @@ export async function applyDetails(env: Env, results: DetailResult[]): Promise<{
   const stmts: D1PreparedStatement[] = [];
   for (const r of results) {
     stmts.push(env.DB.prepare("UPDATE deal_posts SET detail_tries = detail_tries + 1, shop_url = COALESCE(shop_url, ?) WHERE source = ? AND post_id = ?").bind(r.shopUrl, r.source, r.postId));
+    if (!r.shopUrl && r.imageUrl) {
+      // 쇼핑몰 주소는 못 얻었지만 글 대표 이미지는 있다(D-24)
+      stmts.push(env.DB.prepare("UPDATE deals SET image_url = COALESCE(image_url, ?) WHERE id = (SELECT deal_id FROM deal_posts WHERE source = ? AND post_id = ?)").bind(r.imageUrl, r.source, r.postId));
+    }
     if (r.shopUrl) {
       stmts.push(env.DB.prepare(
         `UPDATE deals SET

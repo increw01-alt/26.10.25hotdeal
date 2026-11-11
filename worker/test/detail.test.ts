@@ -205,7 +205,7 @@ describe("sanitizeDetailResults", () => {
     expect(out).toEqual([
       { source: "ppomppu", postId: "1", shopUrl: "https://shop.test/a", imageUrl: "https://img.shop.test/a.jpg" },
       { source: "clien", postId: "2", shopUrl: null, imageUrl: null },
-      { source: "ruliweb", postId: "3", shopUrl: null, imageUrl: null }, // 쇼핑몰 주소 없이 이미지만 오면 버린다
+      { source: "ruliweb", postId: "3", shopUrl: null, imageUrl: "https://img.shop.test/b.jpg" }, // 글 대표 이미지는 쇼핑몰 주소 없이도 받는다(D-24)
     ]);
     expect(sanitizeDetailResults(Array.from({ length: 30 }, (_, i) => ({ source: "clien", post_id: String(i), shop_url: null, image_url: null })))).toHaveLength(20);
     expect(sanitizeDetailResults({ nope: 1 })).toEqual([]);

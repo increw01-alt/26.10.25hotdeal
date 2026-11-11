@@ -232,7 +232,7 @@ export function sanitizeDetailResults(input: unknown): DetailResult[] {
     const o = r as Record<string, unknown>;
     if (typeof o.source !== "string" || typeof o.post_id !== "string" || !o.source || !o.post_id) continue;
     const shopUrl = cleanShopUrl(o.shop_url);
-    out.push({ source: o.source.slice(0, 40), postId: o.post_id.slice(0, 80), shopUrl, imageUrl: shopUrl ? cleanImageUrl(o.image_url) : null });
+    out.push({ source: o.source.slice(0, 40), postId: o.post_id.slice(0, 80), shopUrl, imageUrl: cleanImageUrl(o.image_url) }); // 글 대표 이미지는 쇼핑몰 주소가 없어도 받는다(D-24)
     if (out.length >= MAX_DETAIL_RESULTS) break;
   }
   return out;
@@ -252,4 +252,24 @@ export function merchantFromShopUrl(shopUrl: string): string | null {
   const host = u.hostname.toLowerCase();
   for (const [h, slug] of Object.entries(SHOP_HOST_MERCHANT)) if (host === h || host.endsWith(`.${h}`)) return slug;
   return null;
+}
+
+/** 소스별 이미지 서버 도메인. 글의 대표 이미지는 그 커뮤니티의 이미지 서버 것만 쓴다 */
+const POST_IMAGE_HOSTS: Record<string, string> = { ruliweb: "ruliweb.com", clien: "clien.net" };
+
+/**
+ * 커뮤니티 글 페이지의 대표 이미지(og:image) 주소 (D-24). 파일은 저장하지 않고 주소만 쓴다.
+ * 루리웹은 원본 대신 작은 판(/thumb/), 클리앙은 사이트가 쓰는 크기 지정(scale=width:740)을 붙인 주소로 바꾼다(없으면 열리지 않는다).
+ */
+export function extractPostImage(source: string, html: string, pageUrl: string): string | null {
+  const want = POST_IMAGE_HOSTS[source];
+  const og = want ? extractOgImage(html, pageUrl) : null;
+  const u = og ? parseUrl(og) : null;
+  if (!u || !want) return null;
+  const host = u.hostname.toLowerCase();
+  if (host !== want && !host.endsWith(`.${want}`)) return null;
+  if (source === "ruliweb") u.pathname = u.pathname.replace("/ori/", "/thumb/");
+  let out = u.toString();
+  if (source === "clien") { u.search = ""; out = `${u.toString()}?scale=width:740`; }
+  return out.length > MAX_IMAGE_URL ? null : out;
 }
